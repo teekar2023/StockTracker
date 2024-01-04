@@ -1,0 +1,12 @@
+[
+    {
+        "symbol": "AAPL",
+        "target-price": 190,
+        "tresh": "Rises Above"
+    },
+    {
+        "symbol": "NVDA",
+        "target-price": 500,
+        "tresh": "Rises Above"
+    }
+]
