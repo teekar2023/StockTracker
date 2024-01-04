@@ -665,6 +665,25 @@ def dividend_tracker():
     dividend_tracker_title = ttk.Label(root, text="Dividend Tracker", font=("Helvetica", 30))
     dividend_tracker_title.grid(padx=5, pady=5, column=0, row=0, columnspan=2)
     dividend_stock_list_text = "-----Positions-----\n"
+    weight_list = []
+    yield_list = []
+    for security in portfolio.securities:
+        tinfo = yf.Ticker(security.symbol).info
+        weight = security.current_value / portfolio.total_value
+        if "dividendYield" in tinfo:
+            weight_list.append(weight)
+            yield_list.append(tinfo['dividendYield'])
+        else:
+            weight_list.append(weight)
+            yield_list.append(0.0)
+    total_div_yield = 0.0
+    for i in range(len(weight_list)):
+        div_yield = yield_list[i]
+        weight = weight_list[i]
+        weighted_yield = div_yield * weight
+        total_div_yield += weighted_yield
+    total_div_yield *= 100
+    dividend_stock_list_text += f"Total Dividend Yield: {round(total_div_yield, 2)}%\n\n"
     for stock in dividend_stock_list:
         dividend_stock_list_text += f"{stock.name} - {yf.Ticker(stock.symbol).info["dividendYield"] * 100}%\n\n"
     list_of_dividend_stocks = ttk.Label(root, text=f"{dividend_stock_list_text}")
