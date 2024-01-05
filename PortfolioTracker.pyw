@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter.messagebox import askyesno, showinfo
-from tkinter.simpledialog import askstring, askfloat
+from tkinter.simpledialog import askstring
 
 import pandas as pd
 import yfinance as yf
@@ -9,10 +9,11 @@ import time
 import os
 import sys
 import json
-from datetime import datetime, timedelta, date
+from datetime import datetime, date
 import subprocess
 import platform
 import sv_ttk
+from matplotlib import pyplot as plt
 
 
 class Stock:
@@ -1010,6 +1011,7 @@ def portfolio_summary():
     back_button.destroy()
     allocation_frame.destroy()
     insights_frame.destroy()
+    save_button.destroy()
     loading_label = ttk.Label(root, text="Loading...", font=("Helvetica", 30))
     loading_label.pack(pady=150)
     other_loading_label = ttk.Label(root, text="Download might take a couple seconds...", font=("Helvetica", 15))
@@ -1026,30 +1028,54 @@ def save_portfolio_summary():
 
 
 def portfolio_sector_allocation():
-    list_of_sectors = []
+    list_of_sectors = {}
     for stock in portfolio.securities:
         tinfo = yf.Ticker(stock.symbol).info
-        sector = tinfo['sector']
-        if sector not in list_of_sectors:
-            list_of_sectors.append({
-                "sector": sector,
-                "amt": 1
-            })
+        try:
+            sector = tinfo['sector']
+            pass
+        except Exception:
+            sector = "ETFs"
+            pass
+        if sector not in list_of_sectors.keys():
+            list_of_sectors[f'{sector}'] = 1
         else:
-            for known_sector in list_of_sectors:
-                if known_sector['sector'] == sector:
-                    prev_value = known_sector['amt']
-                    list_of_sectors.remove(known_sector)
-                    list_of_sectors.append({
-                        'sector': sector,
-                        'amt': prev_value + 1
-                    })
-    # TODO
+            for key, value in list_of_sectors.items():
+                if key == sector:
+                    list_of_sectors[f'{sector}'] = value + 1
+    category_labels = list(list_of_sectors.keys())
+    category_values = list(list_of_sectors.values())
+    fig, ax = plt.subplots()
+    plt.pie(category_values, labels=category_labels, autopct="%1.1f%%")
+    plt.title("Sectors")
+    plt.show()
+    plt.close()
     return
 
 
 def portfolio_country_allocation():
-    return  # TODO
+    list_of_countries = {}
+    for stock in portfolio.securities:
+        tinfo = yf.Ticker(stock.symbol).info
+        try:
+            country = tinfo['country']
+            pass
+        except Exception:
+            continue
+        if country not in list_of_countries.keys():
+            list_of_countries[f'{country}'] = 1
+        else:
+            for key, value in list_of_countries.items():
+                if key == country:
+                    list_of_countries[f'{country}'] = value + 1
+    cat_labels = list(list_of_countries.keys())
+    cat_values = list(list_of_countries.values())
+    fig, ax = plt.subplots()
+    plt.pie(cat_values, labels=cat_labels, autopct="%1.1f%%")
+    plt.title("Countries")
+    plt.show()
+    plt.close()
+    return
 
 
 def restart_app(event):
