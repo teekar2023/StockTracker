@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, filedialog
 from tkinter.messagebox import askyesno, showinfo
 from tkinter.simpledialog import askstring
 
@@ -14,7 +14,6 @@ import subprocess
 import platform
 import sv_ttk
 from matplotlib import pyplot as plt
-
 
 class Stock:
     def __init__(self, symbol: str, name: str, shares: float, avg_price: float):
@@ -78,7 +77,7 @@ class Portfolio:
         self.total_rel_gain = round((self.total_abs_gain / self.total_initial_value) * 100, 2)
         for security in self.securities:
             self.total_daily_abs_gain = self.total_daily_abs_gain + security.daily_abs_gain
-        self.total_daily_rel_gain = round(self.total_daily_abs_gain / self.total_initial_value, 2)
+        self.total_daily_rel_gain = round((self.total_daily_abs_gain / self.total_initial_value) * 100, 2)
         self.total_daily_abs_gain = round(self.total_daily_abs_gain, 2)
         return
 
@@ -192,16 +191,16 @@ def update_main_window():
     alerts_json = json.load(open("Settings/alerts.json", "r"))
     triggered_alerts = []
     for alert in alerts_json:
-        stock_data = yf.download(alert["symbol"], period="1d", prepost=True)
+        stock_data = portfolio.get_security_by_symbol(alert['symbol'])
         try:
             if alert["tresh"] == "Rises Above":
-                if stock_data['Close'].iloc[-1] >= alert["target-price"]:
-                    showinfo(title="Custom Alert", message=f"{alert["symbol"]} rose above {alert["target-price"]}. This alert will now be deleted")
-                    triggered_alerts.append(alerts_json.index(alert))
+                if stock_data.current_price >= alert["target-price"]:
+                    showinfo(title="Custom Alert", message=f"{alert["symbol"]} rose above {alert["target-price"]}. This alert will be deleted")
+                    triggered_alerts.append(alert)
             else:
-                if stock_data['Close'].iloc[-1] <= alert["target-price"]:
-                    showinfo(title="Custom Alert", message=f"{alert["symbol"]} fell below {alert["target-price"]}. This alert will now be deleted")
-                    triggered_alerts.append(alerts_json.index(alert))
+                if stock_data.current_price <= alert["target-price"]:
+                    showinfo(title="Custom Alert", message=f"{alert["symbol"]} fell below {alert["target-price"]}. This alert will be deleted")
+                    triggered_alerts.append(alert)
             pass
         except Exception:
             pass
@@ -304,6 +303,36 @@ def load_app():
     root.update()
     refresh_interval = root.after(settings_json["refresh-interval"] * 1000, update_main_window)
     print("Loading complete")
+    alerts_json = json.load(open("Settings/alerts.json", "r"))
+    triggered_alerts = []
+    for alert in alerts_json:
+        stock_data = portfolio.get_security_by_symbol(alert['symbol'])
+        try:
+            if alert["tresh"] == "Rises Above":
+                if stock_data.current_price >= alert["target-price"]:
+                    showinfo(title="Custom Alert",
+                             message=f"{alert["symbol"]} rose above {alert["target-price"]}. This alert will be deleted")
+                    triggered_alerts.append(alert)
+            else:
+                if stock_data.current_price <= alert["target-price"]:
+                    showinfo(title="Custom Alert",
+                             message=f"{alert["symbol"]} fell below {alert["target-price"]}. This alert will be deleted")
+                    triggered_alerts.append(alert)
+            pass
+        except Exception:
+            pass
+    new_alerts = []
+    for alert in alerts_json:
+        if alert not in triggered_alerts:
+            new_alerts.append(alert)
+    alerts_object = json.dumps(new_alerts, indent=4)
+    alerts_file = open("Settings/alerts.json", "w+")
+    alerts_file.truncate(0)
+    with alerts_file as outfile:
+        outfile.write(alerts_object)
+        alerts_file.close()
+        pass
+    print("Alert check complete")
     return
 
 
@@ -419,9 +448,7 @@ def log_sell():
     submit_wait_var.set(0)
     submit_button = ttk.Button(sell_window, text="Confirm", command=lambda: submit_wait_var.set(1))
     submit_button.pack(padx=5, pady=5)
-    sell_all_shares_button = ttk.Button(sell_window, text="Sell All Shares", command=lambda: sell_all_shares(sell_window,
-                                                                                                            portfolio.get_security_by_symbol(
-                                                                                                                selected_stock.get())))
+    sell_all_shares_button = ttk.Button(sell_window, text="Sell All Shares", command=lambda: sell_all_shares(sell_window, portfolio.get_security_by_symbol(selected_stock.get())))
     sell_all_shares_button.pack(padx=5, pady=5)
     sell_window.wait_variable(submit_wait_var)
     shares = float(shares_var.get())
@@ -918,7 +945,7 @@ def portfolio_summary():
     stats_frame.destroy()
     actions_frame.destroy()
     last_refreshed_text.destroy()
-    root.geometry("1100x500")
+    root.geometry("1100x535")
     summary_window_title = ttk.Label(root, text="Portfolio Summary", font=("Helvetica", 30))
     summary_window_title.grid(row=0, column=1, padx=5, pady=5)
     holdings_summary_text = ttk.Label(root, text=f"Current Value: ${portfolio.total_value}\n"
@@ -943,10 +970,12 @@ def portfolio_summary():
                                                             f"Stocks: {stock_count} ({round((stock_count / total_count) * 100, 2)}%)\n"
                                                             f"ETFs: {etf_count} ({round((etf_count / total_count) * 100, 2)}%)")
     type_allocation_text.grid(padx=5, pady=5, column=0, row=0)
-    sector_allocation_button = ttk.Button(allocation_frame, text="Sectors", command=portfolio_sector_allocation)
+    sector_allocation_button = ttk.Button(allocation_frame, text="Sector", command=portfolio_sector_allocation)
     sector_allocation_button.grid(padx=5, pady=5, column=0, row=1)
-    country_allocation_button = ttk.Button(allocation_frame, text="Countries", command=portfolio_country_allocation)
+    country_allocation_button = ttk.Button(allocation_frame, text="Country", command=portfolio_country_allocation)
     country_allocation_button.grid(padx=5, pady=5, column=1, row=1)
+    etf_allocation_button = ttk.Button(allocation_frame, text="ETF", command=portfolio_etf_allocation)
+    etf_allocation_button.grid(padx=5, pady=5, column=0, row=2, columnspan=2)
     pos_allocation_text = "Symbol - Percent | Shares\n"
     for position in portfolio.securities:
         pos_allocation_text += f"{position.symbol} - {round((position.current_value / portfolio.total_value) * 100, 2)}% | {round(position.shares, 4)}\n"
@@ -1004,6 +1033,9 @@ def portfolio_summary():
     back_button.grid(row=3, column=0, padx=5, pady=5)
     save_button = ttk.Button(root, text="Save to file", command=save_portfolio_summary)
     save_button.grid(row=3, column=1, padx=5, pady=5)
+    root.deiconify()
+    root.update()
+    root.focus_set()
     root.wait_variable(summary_wait_var)
     summary_window_title.destroy()
     holdings_summary_text.destroy()
@@ -1024,7 +1056,128 @@ def portfolio_summary():
 
 
 def save_portfolio_summary():
-    return  # TODO compile portfolio summary and write to selected file
+    filename = filedialog.asksaveasfilename(
+            initialdir="/",
+            title="Select or Create TXT File",
+            defaultextension=".txt",
+            filetypes=(("Text files", "*.txt"), ("All files", "*.*"))
+    )
+    output = "-----PORTFOLIO SUMMARY-----\n"
+    output += "---Basic Info---\n"
+    output += f"Current Value: ${portfolio.total_value}\nInvested Capital: ${round(portfolio.total_initial_value, 2)}\nTotal Change: ${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)\nDaily Change: ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)\n\n"
+    output += "---Holdings---\n"
+    stock_count = 0
+    etf_count = 0
+    for security in portfolio.securities:
+        tinfo = yf.Ticker(security.symbol).info
+        if "industry" in tinfo:
+            stock_count += 1
+        else:
+            etf_count += 1
+    total_count = stock_count + etf_count
+    output += f"Stocks: {stock_count}\nETFs: {etf_count}\nTotal: {total_count}\n\n"
+    for position in portfolio.securities:
+        output += f"{position.symbol} - {round(position.shares, 4)} shares | ${position.current_value}\n"
+    output += "\n\n---Allocation---\nSectors:\n"
+    list_of_sectors = {}
+    for stock in portfolio.securities:
+        tinfo = yf.Ticker(stock.symbol).info
+        try:
+            sector = tinfo['sector']
+            pass
+        except Exception:
+            sector = "ETFs"
+            pass
+        if sector not in list_of_sectors.keys():
+            list_of_sectors[f'{sector}'] = 1
+        else:
+            for key, value in list_of_sectors.items():
+                if key == sector:
+                    list_of_sectors[f'{sector}'] = value + 1
+    for key, value in list_of_sectors.items():
+        output += f"{key}: {value}\n"
+    output += "\nCountries:\n"
+    list_of_countries = {}
+    for stock in portfolio.securities:
+        tinfo = yf.Ticker(stock.symbol).info
+        try:
+            country = tinfo['country']
+            pass
+        except Exception:
+            continue
+        if country not in list_of_countries.keys():
+            list_of_countries[f'{country}'] = 1
+        else:
+            for key, value in list_of_countries.items():
+                if key == country:
+                    list_of_countries[f'{country}'] = value + 1
+    for key, value in list_of_countries.items():
+        output += f"{key}: {value}\n"
+    output += "\n---Top Changers---\n"
+    presorted_list = []
+    for security in portfolio.securities:
+        presorted_list.append(security.absolute_gain)
+    gain_sorted_list = sorted(presorted_list, reverse=True)
+    loss_sorted_list = sorted(presorted_list)
+    gain_sorted_stocks = []
+    loss_sorted_stocks = []
+    for i in range(5):
+        gain_sorted_stocks.append(portfolio.securities[presorted_list.index(gain_sorted_list[i])])
+        loss_sorted_stocks.append(portfolio.securities[presorted_list.index(loss_sorted_list[i])])
+    top_gainers_text = "Top Gainers:\n"
+    top_losers_text = "Top Losers:\n"
+    for stock in gain_sorted_stocks:
+        top_gainers_text += f"{stock.symbol} - ${round(stock.absolute_gain, 2)} | {round(stock.relative_gain, 2)}%\n"
+    for stock in loss_sorted_stocks:
+        top_losers_text += f"{stock.symbol} - ${round(stock.absolute_gain, 2)} | {round(stock.relative_gain, 2)}%\n"
+    output += "-By Absolute Change-\n"
+    output += f"{top_gainers_text}\n{top_losers_text}\n"
+    presorted_rel_list = []
+    for pos in portfolio.securities:
+        presorted_rel_list.append(pos.relative_gain)
+    gain_sorted_rel_list = sorted(presorted_rel_list, reverse=True)
+    loss_sorted_rel_list = sorted(presorted_rel_list)
+    gain_sorted_rel_stocks = []
+    loss_sorted_rel_stocks = []
+    for i in range(5):
+        gain_sorted_rel_stocks.append(portfolio.securities[presorted_rel_list.index(gain_sorted_rel_list[i])])
+        loss_sorted_rel_stocks.append(portfolio.securities[presorted_rel_list.index(loss_sorted_rel_list[i])])
+    top_gainers_rel_text = "-----Top Gainers-----\n"
+    top_losers_rel_text = "-----Top Losers-----\n"
+    for stock in gain_sorted_rel_stocks:
+        top_gainers_rel_text += f"{stock.symbol} - ${round(stock.absolute_gain, 2)} | {round(stock.relative_gain, 2)}%\n"
+    for stock in loss_sorted_rel_stocks:
+        top_losers_rel_text += f"{stock.symbol} - ${round(stock.absolute_gain, 2)} | {round(stock.relative_gain, 2)}%\n"
+    output += "-By Relative Change-\n"
+    output += f"{top_gainers_rel_text}\n{top_losers_rel_text}\n"
+    with open(filename, "w+") as file:
+        file.write(output)
+        file.close()
+    if platform.system() == 'Darwin':
+        subprocess.call(('open', filename))
+    elif platform.system() == 'Windows':
+        os.startfile(filename)
+    else:
+        subprocess.call(('xdg-open', filename))
+    return
+
+
+def portfolio_etf_allocation():
+    list_of_etfs = {}
+    list_of_weights = {}
+    for stock in portfolio.securities:
+        tinfo = yf.Ticker(stock.symbol).info
+        try:
+            # TODO
+            holdings = None
+            list_of_etfs[stock.symbol] = holdings
+            weight = stock.current_value / portfolio.total_value
+            list_of_weights[stock.symbol] = weight
+        except Exception:
+            continue
+    print(list_of_etfs)
+    # TODO
+    return
 
 
 def portfolio_sector_allocation():
