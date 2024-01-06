@@ -13,7 +13,9 @@ from datetime import datetime, date
 import subprocess
 import platform
 import sv_ttk
+import csv
 from matplotlib import pyplot as plt
+
 
 class Stock:
     def __init__(self, symbol: str, name: str, shares: float, avg_price: float):
@@ -148,10 +150,10 @@ def update_main_window():
     stats_frame = ttk.Frame(root)
     total_value_label = ttk.Label(stats_frame, text=f"Value: ${portfolio.total_value}", font=("Helvetica", 20))
     daily_gain_label = ttk.Label(stats_frame,
-                                text=f"Daily: ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
-                                font=("Helvetica", 18))
+                                 text=f"Daily: ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
+                                 font=("Helvetica", 18))
     total_gain_label = ttk.Label(stats_frame, text=f"Total: ${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
-                                font=("Helvetica", 18))
+                                 font=("Helvetica", 18))
     total_value_label.grid(column=0, row=0, padx=5, pady=5)
     daily_gain_label.grid(column=0, row=1, padx=5, pady=5)
     total_gain_label.grid(column=0, row=2, padx=5, pady=5)
@@ -195,11 +197,13 @@ def update_main_window():
         try:
             if alert["tresh"] == "Rises Above":
                 if stock_data.current_price >= alert["target-price"]:
-                    showinfo(title="Custom Alert", message=f"{alert["symbol"]} rose above {alert["target-price"]}. This alert will be deleted")
+                    showinfo(title="Custom Alert",
+                             message=f"{alert["symbol"]} rose above {alert["target-price"]}. This alert will be deleted")
                     triggered_alerts.append(alert)
             else:
                 if stock_data.current_price <= alert["target-price"]:
-                    showinfo(title="Custom Alert", message=f"{alert["symbol"]} fell below {alert["target-price"]}. This alert will be deleted")
+                    showinfo(title="Custom Alert",
+                             message=f"{alert["symbol"]} fell below {alert["target-price"]}. This alert will be deleted")
                     triggered_alerts.append(alert)
             pass
         except Exception:
@@ -265,10 +269,10 @@ def load_app():
     portfolio.calculate_total_gain()
     total_value_label = ttk.Label(stats_frame, text=f"Value: ${portfolio.total_value}", font=("Helvetica", 20))
     daily_gain_label = ttk.Label(stats_frame,
-                                text=f"Daily: ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
-                                font=("Helvetica", 18))
+                                 text=f"Daily: ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
+                                 font=("Helvetica", 18))
     total_gain_label = ttk.Label(stats_frame, text=f"Total: ${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
-                                font=("Helvetica", 18))
+                                 font=("Helvetica", 18))
     total_value_label.grid(column=0, row=0, padx=5, pady=5)
     daily_gain_label.grid(column=0, row=1, padx=5, pady=5)
     total_gain_label.grid(column=0, row=2, padx=5, pady=5)
@@ -448,7 +452,9 @@ def log_sell():
     submit_wait_var.set(0)
     submit_button = ttk.Button(sell_window, text="Confirm", command=lambda: submit_wait_var.set(1))
     submit_button.pack(padx=5, pady=5)
-    sell_all_shares_button = ttk.Button(sell_window, text="Sell All Shares", command=lambda: sell_all_shares(sell_window, portfolio.get_security_by_symbol(selected_stock.get())))
+    sell_all_shares_button = ttk.Button(sell_window, text="Sell All Shares",
+                                        command=lambda: sell_all_shares(sell_window, portfolio.get_security_by_symbol(
+                                            selected_stock.get())))
     sell_all_shares_button.pack(padx=5, pady=5)
     sell_window.wait_variable(submit_wait_var)
     shares = float(shares_var.get())
@@ -508,37 +514,38 @@ def on_stock_selected(event):
     info_frame = ttk.LabelFrame(root, text="Information")
     try:
         ttk.Label(info_frame,
-                 text=f"{tinfo['website']}\n{tinfo['longBusinessSummary']}\n\n{tinfo['industry']} - {tinfo['sector']}",
-                 wraplength=520, width=60).pack(padx=5, pady=5)
+                  text=f"{tinfo['website']}\n{tinfo['longBusinessSummary']}\n\n{tinfo['industry']} - {tinfo['sector']}",
+                  wraplength=520, width=60).pack(padx=5, pady=5)
         pass
     except Exception:
         ttk.Label(info_frame,
-                 text=f"ETF\n\n{tinfo['longBusinessSummary']}\n\nCategory: {tinfo['category']}\n\n",
-                 wraplength=520, width=60).pack(padx=5, pady=5)
+                  text=f"ETF\n\n{tinfo['longBusinessSummary']}\n\nCategory: {tinfo['category']}\n\n",
+                  wraplength=520, width=60).pack(padx=5, pady=5)
         pass
     info_frame.grid(padx=5, pady=5, column=0, row=1)
     price_info_frame = ttk.LabelFrame(root, text="Market Data")
     ttk.Label(price_info_frame,
-             text=f"-----Metrics-----\nCurrent Price: {stock.current_price}\nClose: {tinfo['previousClose']}\nOpen: "
-                  f"{tinfo['open']}\nDay Low: {tinfo['dayLow']}\nDay High: {tinfo['dayHigh']}\n52-day Low: "
-                  f"{tinfo['fiftyTwoWeekLow']}\n52-Week High: {tinfo['fiftyTwoWeekHigh']}\nVolume: "
-                  f"{tinfo['volume']}\n\n\n-----Holdings-----\nShares: {stock.shares}\nAvg. Price/Share: {stock.avg_price}\n"
-                  f"Value: {stock.current_value}\nInitial Value: {stock.initial_value}\n"
-                  f"Total Change: {stock.absolute_gain} ({stock.relative_gain}%)\n"
-                  f"Daily Change: {stock.daily_abs_gain} ({stock.daily_rel_gain}%)", wraplength=520, width=50).pack(padx=5, pady=5)
+              text=f"-----Metrics-----\nCurrent Price: {stock.current_price}\nClose: {tinfo['previousClose']}\nOpen: "
+                   f"{tinfo['open']}\nDay Low: {tinfo['dayLow']}\nDay High: {tinfo['dayHigh']}\n52-day Low: "
+                   f"{tinfo['fiftyTwoWeekLow']}\n52-Week High: {tinfo['fiftyTwoWeekHigh']}\nVolume: "
+                   f"{tinfo['volume']}\n\n\n-----Holdings-----\nShares: {stock.shares}\nAvg. Price/Share: {stock.avg_price}\n"
+                   f"Value: {stock.current_value}\nInitial Value: {stock.initial_value}\n"
+                   f"Total Change: {stock.absolute_gain} ({stock.relative_gain}%)\n"
+                   f"Daily Change: {stock.daily_abs_gain} ({stock.daily_rel_gain}%)", wraplength=520, width=50).pack(
+        padx=5, pady=5)
     price_info_frame.grid(padx=5, pady=5, column=1, row=1)
     dividend_frame = ttk.LabelFrame(root, text="Dividends")
     if "dividendYield" in tinfo:
         ttk.Label(dividend_frame,
-                 text=f"Rate: {tinfo['dividendRate']}\n\nYield: {tinfo['dividendYield']}\n\n5y Avg. Yield: {tinfo['fiveYearAvgDividendYield']}\n\n"
-                      f"Ex-Div. Date: {datetime.fromtimestamp(int(tinfo['exDividendDate'])).strftime("%Y-%m-%d %H:%M:%S")}\n\nPayout Ratio: {tinfo['payoutRatio']}\n\n"
-                      f"Last Div. Value: {tinfo['lastDividendValue']}\n\nLast Div. Date: {datetime.fromtimestamp(int(tinfo['lastDividendDate'])).strftime("%Y-%m-%d %H:%M:%S")}",
-                 wraplength=520, width=60).pack(padx=5, pady=5)
+                  text=f"Rate: {tinfo['dividendRate']}\n\nYield: {tinfo['dividendYield']}\n\n5y Avg. Yield: {tinfo['fiveYearAvgDividendYield']}\n\n"
+                       f"Ex-Div. Date: {datetime.fromtimestamp(int(tinfo['exDividendDate'])).strftime("%Y-%m-%d %H:%M:%S")}\n\nPayout Ratio: {tinfo['payoutRatio']}\n\n"
+                       f"Last Div. Value: {tinfo['lastDividendValue']}\n\nLast Div. Date: {datetime.fromtimestamp(int(tinfo['lastDividendDate'])).strftime("%Y-%m-%d %H:%M:%S")}",
+                  wraplength=520, width=60).pack(padx=5, pady=5)
         pass
     else:
         ttk.Label(dividend_frame,
-                 text=f"No Dividend Data",
-                 wraplength=520, width=60).pack(padx=5, pady=5)
+                  text=f"No Dividend Data",
+                  wraplength=520, width=60).pack(padx=5, pady=5)
         pass
     dividend_frame.grid(padx=5, pady=5, column=0, row=2)
     tool_frame = ttk.LabelFrame(root, text="More Tools")
@@ -614,10 +621,10 @@ def search_stock():
             padx=5, pady=5)
     except Exception:
         ttk.Label(price_info_frame,
-                text=f"-----Metrics-----\nCurrent Price: {stock_data['Close'].iloc[-1]}\nClose: {tinfo['previousClose']}\nOpen: "
-                    f"{tinfo['open']}\nDay Low: {tinfo['dayLow']}\nDay High: {tinfo['dayHigh']}\n52-day Low: "
-                    f"{tinfo['fiftyTwoWeekLow']}\n52-Week High: {tinfo['fiftyTwoWeekHigh']}\nVolume: "
-                    f"{tinfo['volume']}", wraplength=520, width=50).pack(
+                  text=f"-----Metrics-----\nCurrent Price: {stock_data['Close'].iloc[-1]}\nClose: {tinfo['previousClose']}\nOpen: "
+                       f"{tinfo['open']}\nDay Low: {tinfo['dayLow']}\nDay High: {tinfo['dayHigh']}\n52-day Low: "
+                       f"{tinfo['fiftyTwoWeekLow']}\n52-Week High: {tinfo['fiftyTwoWeekHigh']}\nVolume: "
+                       f"{tinfo['volume']}", wraplength=520, width=50).pack(
             padx=5, pady=5)
     price_info_frame.grid(padx=5, pady=5, column=1, row=1)
     dividend_frame = ttk.LabelFrame(root, text="Dividends")
@@ -854,10 +861,12 @@ def create_alert():
     price_entry.pack(padx=5, pady=5)
     tresh_dropdown_label = ttk.Label(create_alert_window, text="Type")
     tresh_dropdown_label.pack(padx=5, pady=5)
-    tresh_dropdown = ttk.Combobox(create_alert_window, width=25, state="readonly", values=["Rises Above", "Falls Below"])
+    tresh_dropdown = ttk.Combobox(create_alert_window, width=25, state="readonly",
+                                  values=["Rises Above", "Falls Below"])
     tresh_dropdown.pack(padx=5, pady=5)
     create_alert_wait_var = tk.IntVar()
-    create_button = ttk.Button(create_alert_window, text="Create Alert", style="Accent.TButton", command=lambda: create_alert_wait_var.set(1))
+    create_button = ttk.Button(create_alert_window, text="Create Alert", style="Accent.TButton",
+                               command=lambda: create_alert_wait_var.set(1))
     create_button.pack(padx=5, pady=5)
     create_alert_window.wait_variable(create_alert_wait_var)
     alerts_json = json.load(open("Settings/alerts.json", "r"))
@@ -879,7 +888,8 @@ def create_alert():
         pass
     create_alert_window.destroy()
     root.iconify()
-    showinfo(title="Create Alert", message=f"New alert created for when {new_alert["symbol"]} {new_alert["tresh"]} {new_alert["target-price"]}")
+    showinfo(title="Create Alert",
+             message=f"New alert created for when {new_alert["symbol"]} {new_alert["tresh"]} {new_alert["target-price"]}")
     restart_app(None)
 
 
@@ -901,7 +911,8 @@ def remove_alert():
     alerts_dropdown = ttk.Combobox(remove_alert_window, state="readonly", values=current_alerts, width=25)
     alerts_dropdown.pack(padx=5, pady=5)
     remove_alert_wait_var = tk.IntVar()
-    remove_button = ttk.Button(remove_alert_window, text="Remove Alert", command=lambda: remove_alert_wait_var.set(1), style="Accent.TButton")
+    remove_button = ttk.Button(remove_alert_window, text="Remove Alert", command=lambda: remove_alert_wait_var.set(1),
+                               style="Accent.TButton")
     remove_button.pack(padx=5, pady=5)
     remove_alert_window.wait_variable(remove_alert_wait_var)
     selected_alert = alerts_dropdown.get()
@@ -949,9 +960,10 @@ def portfolio_summary():
     summary_window_title = ttk.Label(root, text="Portfolio Summary", font=("Helvetica", 30))
     summary_window_title.grid(row=0, column=1, padx=5, pady=5)
     holdings_summary_text = ttk.Label(root, text=f"Current Value: ${portfolio.total_value}\n"
-                                                          f"Invested Capital: ${round(portfolio.total_initial_value, 2)}\n"
-                                                          f"Total Change: ${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)\n"
-                                                          f"Daily Change: ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)", font=("Helvetica", 15))
+                                                 f"Invested Capital: ${round(portfolio.total_initial_value, 2)}\n"
+                                                 f"Total Change: ${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)\n"
+                                                 f"Daily Change: ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
+                                      font=("Helvetica", 15))
     holdings_summary_text.grid(row=1, column=1, padx=5, pady=5)
     history_frame = ttk.Frame(root)
     history_frame.grid(row=0, column=1, padx=5, pady=5)
@@ -1164,17 +1176,9 @@ def save_portfolio_summary():
 
 def portfolio_etf_allocation():
     list_of_etfs = {}
-    list_of_weights = {}
     for stock in portfolio.securities:
         tinfo = yf.Ticker(stock.symbol).info
-        try:
-            # TODO
-            holdings = None
-            list_of_etfs[stock.symbol] = holdings
-            weight = stock.current_value / portfolio.total_value
-            list_of_weights[stock.symbol] = weight
-        except Exception:
-            continue
+        # TODO
     print(list_of_etfs)
     # TODO
     return
@@ -1245,15 +1249,31 @@ def quit_app(event):
 portfolio = Portfolio()
 root = tk.Tk()
 root.title("Stonks 📈")
+root.geometry("1675x600")
+root.protocol("WM_DELETE_WINDOW", lambda: quit_app(None))
+root.bind("<r>", restart_app)
+root.bind("<Escape>", quit_app)
+if not os.path.exists("Settings/"):
+    os.mkdir("Settings")
+if not os.path.exists("Settings/settings.json"):
+    settings = {
+        "refresh-interval": 7,
+        "dark-mode": 1
+    }
+    settings_object = json.dumps(settings, indent=4)
+    with open("Settings/settings.json", "w+") as sf:
+        sf.write(settings_object)
+        sf.close()
+if not os.path.exists("Settings/alerts.json"):
+    alerts_object = json.dumps([], indent=4)
+    with open("Settings/alerts.json", "w+") as af:
+        af.write(alerts_object)
+        af.close()
 settings_json = json.load(open("Settings/settings.json", "r"))
 if settings_json["dark-mode"] == 1:
     sv_ttk.set_theme("dark")
 else:
     sv_ttk.set_theme("light")
-root.geometry("1675x600")
-root.protocol("WM_DELETE_WINDOW", lambda: quit_app(None))
-root.bind("<r>", restart_app)
-root.bind("<Escape>", quit_app)
 if os.path.exists("portfolio-holdings.csv"):
     loading_label = ttk.Label(root, text="Stonks 📈", font=("Helvetica", 30))
     loading_label.pack(pady=150)
@@ -1263,13 +1283,12 @@ if os.path.exists("portfolio-holdings.csv"):
     yet_another_loading_label.pack(pady=115)
     root.after(100, load_app)
 else:
-    error_label = ttk.Label(root, text=f"Error: Portfolio data not found\nPlace portfolio-holdings.csv in {os.getcwd()}",
-                           font=("Helvetica", 30))
-    error_label.pack(pady=150)
-    restart_button = ttk.Button(root, text="Restart", command=lambda: restart_app(None))
-    restart_button.pack(padx=20, pady=20)
-    quit_button = ttk.Button(root, text="Quit", command=lambda: quit_app(None))
-    quit_button.pack(padx=20, pady=20)
+    headers = ["Symbol", "Name", "Shares", "AvgPrice"]
+    with open('portfolio-holdings.csv', 'w+', newline='') as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(headers)
+        csv_writer.writerow(["AAPL", "Apple", 1, 150.00])
+    restart_app(None)
 table_frame = ttk.LabelFrame(root, text="Holdings")
 stats_frame = ttk.Frame(root)
 launch_time = time.strftime('%l:%M:%S')
