@@ -537,7 +537,7 @@ def on_stock_selected(event):
     dividend_frame = ttk.LabelFrame(root, text="Dividends")
     if "dividendYield" in tinfo:
         ttk.Label(dividend_frame,
-                  text=f"Rate: {tinfo['dividendRate']}\n\nYield: {tinfo['dividendYield']}\n\n5y Avg. Yield: {tinfo['fiveYearAvgDividendYield']}\n\n"
+                  text=f"Rate: {tinfo['dividendRate']}\n\nYield: {float(tinfo['dividendYield']) * 100}\n\n5y Avg. Yield: {tinfo['fiveYearAvgDividendYield']}\n\n"
                        f"Ex-Div. Date: {datetime.fromtimestamp(int(tinfo['exDividendDate'])).strftime("%Y-%m-%d %H:%M:%S")}\n\nPayout Ratio: {tinfo['payoutRatio']}\n\n"
                        f"Last Div. Value: {tinfo['lastDividendValue']}\n\nLast Div. Date: {datetime.fromtimestamp(int(tinfo['lastDividendDate'])).strftime("%Y-%m-%d %H:%M:%S")}",
                   wraplength=520, width=60).pack(padx=5, pady=5)
@@ -630,7 +630,7 @@ def search_stock():
     dividend_frame = ttk.LabelFrame(root, text="Dividends")
     if "dividendYield" in tinfo:
         ttk.Label(dividend_frame,
-                  text=f"Rate: {tinfo['dividendRate']}\n\nYield: {tinfo['dividendYield']}\n\n5y Avg. Yield: {tinfo['fiveYearAvgDividendYield']}\n\n"
+                  text=f"Rate: {tinfo['dividendRate']}\n\nYield: {float(tinfo['dividendYield']) * 100}\n\n5y Avg. Yield: {tinfo['fiveYearAvgDividendYield']}\n\n"
                        f"Ex-Div. Date: {datetime.fromtimestamp(int(tinfo['exDividendDate'])).strftime("%Y-%m-%d %H:%M:%S")}\n\nPayout Ratio: {tinfo['payoutRatio']}\n\n"
                        f"Last Div. Value: {tinfo['lastDividendValue']}\n\nLast Div. Date: {datetime.fromtimestamp(int(tinfo['lastDividendDate'])).strftime("%Y-%m-%d %H:%M:%S")}",
                   wraplength=520, width=60).pack(padx=5, pady=5)
@@ -1069,7 +1069,8 @@ def portfolio_summary():
 
 def save_portfolio_summary():
     filename = filedialog.asksaveasfilename(
-            initialdir="/",
+            initialdir=os.getcwd(),
+            initialfile="PortfolioSummary.txt",
             title="Select or Create TXT File",
             defaultextension=".txt",
             filetypes=(("Text files", "*.txt"), ("All files", "*.*"))
@@ -1088,8 +1089,9 @@ def save_portfolio_summary():
             etf_count += 1
     total_count = stock_count + etf_count
     output += f"Stocks: {stock_count}\nETFs: {etf_count}\nTotal: {total_count}\n\n"
+    output += "Symbol - Shares | % Of Portfolio\n"
     for position in portfolio.securities:
-        output += f"{position.symbol} - {round(position.shares, 4)} shares | ${position.current_value}\n"
+        output += f"{position.symbol} - {round(position.shares, 4)} | {round((position.current_value / portfolio.total_value) * 100, 2)}%\n"
     output += "\n\n---Allocation---\nSectors:\n"
     list_of_sectors = {}
     for stock in portfolio.securities:
@@ -1154,17 +1156,22 @@ def save_portfolio_summary():
     for i in range(5):
         gain_sorted_rel_stocks.append(portfolio.securities[presorted_rel_list.index(gain_sorted_rel_list[i])])
         loss_sorted_rel_stocks.append(portfolio.securities[presorted_rel_list.index(loss_sorted_rel_list[i])])
-    top_gainers_rel_text = "-----Top Gainers-----\n"
-    top_losers_rel_text = "-----Top Losers-----\n"
+    top_gainers_rel_text = "Top Gainers:\n"
+    top_losers_rel_text = "Top Losers:\n"
     for stock in gain_sorted_rel_stocks:
         top_gainers_rel_text += f"{stock.symbol} - ${round(stock.absolute_gain, 2)} | {round(stock.relative_gain, 2)}%\n"
     for stock in loss_sorted_rel_stocks:
         top_losers_rel_text += f"{stock.symbol} - ${round(stock.absolute_gain, 2)} | {round(stock.relative_gain, 2)}%\n"
     output += "-By Relative Change-\n"
-    output += f"{top_gainers_rel_text}\n{top_losers_rel_text}\n"
-    with open(filename, "w+") as file:
+    output += f"{top_gainers_rel_text}\n{top_losers_rel_text}\n\n"
+    output += "---All Holdings Information---\n"
+    output += "Symbol | Shares | Invested | Avg Cost/Share\n"
+    for stock in portfolio.securities:
+        output += f"{stock.symbol} | {round(stock.shares, 3)} | ${round(stock.initial_value, 2)} | ${round(stock.avg_price, 2)}\n"
+    with open(filename, "w") as file:
         file.write(output)
         file.close()
+        time.sleep(1)
     if platform.system() == 'Darwin':
         subprocess.call(('open', filename))
     elif platform.system() == 'Windows':

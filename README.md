@@ -1,5 +1,5 @@
 # Portfolio Tracker
-View important portfolio information and visualize data to stay informed and make educated decisions
+## View important portfolio information and visualize data to stay informed and make educated decisions
 ![Main Page](https://github.com/teekar2023/StockTracker/blob/master/resources/readme/main_page.png?raw=true)
 
 # Quick Start
