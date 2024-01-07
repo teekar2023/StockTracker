@@ -1,3 +1,4 @@
+import random
 import tkinter as tk
 from tkinter import ttk, filedialog
 from tkinter.messagebox import askyesno, showinfo
@@ -9,11 +10,12 @@ import time
 import os
 import sys
 import json
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 import subprocess
 import platform
 import sv_ttk
 import csv
+import pytz
 from matplotlib import pyplot as plt
 import nltk
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -101,10 +103,12 @@ class Portfolio:
 
 class Assistant:
     def __init__(self):
-        self.training_data = [  # greeting, goodbye, current-value, thanks
+        self.training_data = [
             ("hello there", "greeting"),
             ("hi", "greeting"),
+            ("how are you", "greeting"),
             ("good morning", "greeting"),
+            ("good evening", "greeting"),
             ("have a good day", "goodbye"),
             ("goodbye", "goodbye"),
             ("bye", "goodbye"),
@@ -112,8 +116,59 @@ class Assistant:
             ("net worth", "current-value"),
             ("current value", "current-value"),
             ("my money", "current-value"),
+            ("my holdings", "current-value"),
             ("thank you", "thanks"),
-            ("helpful", "thanks")
+            ("been helpful", "thanks"),
+            ("how is the market today", "day-change"),
+            ("portfolio today", "day-change"),
+            ("daily change", "day-change"),
+            ("intraday performance", "day-change"),
+            ("total change", "total-performance"),
+            ("portfolio performance", "total-performance"),
+            ("how are my stocks doing", "total-performance"),
+            ("is my portfolio good", "total-performance"),
+            ("how much money have i made", "total-performance"),
+            ("what are my best positions", "best-stocks"),
+            ("top gainers", "best-stocks"),
+            ("best stocks", "best-stocks"),
+            ("most valued securities", "best-stocks"),
+            ("what are my worst positions", "worst-stocks"),
+            ("top losers", "worst-stocks"),
+            ("bottom gainers", "worst-stocks"),
+            ("worst stocks", "worst-stocks"),
+            ("lowest valued securities", "worst-stocks"),
+            ("what sectors am i invested in", "sector-allocation"),
+            ("what is my top held sector", "sector-allocation"),
+            ("sector allocation", "sector-allocation"),
+            ("what kinda positions am i holding", "sector-allocation"),
+            ("what kind of stocks do i have", "sector-allocation"),
+            ("what type of companies am i investing in", "sector-allocation"),
+            ("where are my stocks from", "country-allocation"),
+            ("country allocation", "country-allocation"),
+            ("what countries am i investing in", "country-allocation"),
+            ("when are my next dividends", "next-dividends"),
+            ("next dividends", "next-dividends"),
+            ("dividend calendar", "next-dividends"),
+            ("what should i invest in", "investment-ideas"),
+            ("any ideas on what do buy", "investment-ideas"),
+            ("what should i put my money into", "investment-ideas"),
+            ("time left in day", "close-time"),
+            ("how long until market close", "close-time"),
+            ("what time can i trade until", "close-time"),
+            ("how much longer can i trade for", "close-time"),
+            ("market close", "close-time"),
+            ("market open", "open-time"),
+            ("how long until the day starts", "open-time"),
+            ("how long until i can trade", "open-time"),
+            ("when does the market open", "open-time"),
+            ("how long until i can trade", "open-time"),
+            ("how much longer do i have to wait to trade", "open-time"),
+            ("help", "help"),
+            ("what can you do", "help"),
+            ("what can you tell me", "help"),
+            ("how can you help me", "help"),
+            ("what are you", "help"),
+            ("who are you", "help"),
         ]
         nltk.download('punkt')
         self.stemmer = nltk.stem.PorterStemmer()
@@ -136,9 +191,8 @@ class Assistant:
         return predicted_tag
 
     def get_assistant_response(self, prompt):
-        response = ""
         tag = self.get_tag(prompt)
-        print(tag)
+        response = tag
         if tag == "greeting":
             response = "Hello"
         if tag == "goodbye":
@@ -147,19 +201,68 @@ class Assistant:
             response = f"Your investments current total value is ${portfolio.total_value}"
         if tag == "thanks":
             response = "Happy to help"
+        if tag == "day-change":
+            if portfolio.total_daily_abs_gain <= 0:
+                response = f"You are down today with a daily loss of ${portfolio.total_daily_abs_gain} or {portfolio.total_daily_rel_gain}%"
+            else:
+                response = f"You are up today with a daily gain of ${portfolio.total_daily_abs_gain} or {portfolio.total_daily_rel_gain}%"
+        if tag == "total-performance":
+            if portfolio.total_abs_gain <= 0:
+                response = f"Currently, you have lost ${portfolio.total_abs_gain} or {portfolio.total_rel_gain}% in total"
+            else:
+                response = f"You have made a total return of ${portfolio.total_abs_gain} or {portfolio.total_rel_gain}% on your investments"
+        if tag == "best-stocks":
+            pass  # TODO
+        if tag == "worst-stocks":
+            pass  # TODO
+        if tag == "sector-allocation":
+            response = "NONE"
+            portfolio_sector_allocation()
+        if tag == "country-allocation":
+            response = "NONE"
+            portfolio_country_allocation()
+        if tag == "next-dividends":
+            pass  # TODO
+        if tag == "investment-ideas":
+            pass  # TODO
+        if tag == "close-time":
+            current_time = datetime.now(pytz.timezone('US/Eastern'))
+            target_time = current_time.replace(hour=16, minute=0, second=0, microsecond=0)
+            if current_time > target_time:
+                target_time += timedelta(days=1)
+            time_until_4pm = target_time - current_time
+            response = f"Time until market close is {time_until_4pm}"
+        if tag == "open-time":
+            current_time = datetime.now(pytz.timezone('US/Eastern'))
+            target_time = current_time.replace(hour=9, minute=30, second=0, microsecond=0)
+            if current_time > target_time:
+                close_time = current_time.replace(hour=16, minute=0, second=0, microsecond=0)
+                if current_time >= close_time:
+                    time_until_930 = target_time - current_time
+                    response = f"Time until market open is {time_until_930}"
+                else:
+                    response = "The market is currently open"
+            else:
+                time_until_930 = target_time - current_time
+                response = f"Time until market open is {time_until_930}"
+        if tag == "help":
+            response = ("I am your portfolio tracker assistant. I can help you quickly get what you need to know. Try "
+                        "asking me anything about your portfolio data")
         return response
 
 
-def launch_assistant():
-    print("Launching assistant")
+def launch_assistant(event):
     root.after_cancel(refresh_interval)
-    showinfo(title="", message=assistant.get_assistant_response(askstring(title="Portfolio Assistant", prompt="How can I help?")))
+    list_of_prompts = ["How can i help", "What do you need", "Ask me anything about your portfolio", "I'm ready to help"]
+    res = assistant.get_assistant_response(askstring(title="Portfolio Assistant", prompt=random.choice(list_of_prompts)))
+    if res != "NONE":
+        showinfo(title="Portfolio Assistant", message=res)
     update_main_window()
     return
 
 
 def update_main_window():
-    global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label
+    global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label, loading_bar, current_task, loading_tasks
     root.geometry("1675x600")
     try:
         table_frame.destroy()
@@ -168,6 +271,7 @@ def update_main_window():
         last_refreshed_text.destroy()
         loading_label.destroy()
         other_loading_label.destroy()
+        loading_bar.destroy()
         pass
     except Exception:
         pass
@@ -177,7 +281,7 @@ def update_main_window():
     refresh_interval = root.after(settings_json["refresh-interval"] * 1000, update_main_window)
     table_frame = ttk.LabelFrame(root, text="Holdings")
     table = ttk.Treeview(table_frame, columns=(
-        "Symbol", "Name", "Price", "Shares", "Value", "Principal", "Cost/Share", "Total $", "Total %",
+        "Symbol", "Name", "Price", "Shares", "Value", "Initial", "Cost/Share", "Total $", "Total %",
         "Day $", "Day %"), height=len(portfolio.securities))
     table.config(height=len(portfolio.securities))
     table.bind('<<TreeviewSelect>>', on_stock_selected)
@@ -186,7 +290,7 @@ def update_main_window():
     table.heading("Price", text="Price")
     table.heading("Shares", text="Shares")
     table.heading("Value", text="Value")
-    table.heading("Principal", text="Principal")
+    table.heading("Initial", text="Initial")
     table.heading("Cost/Share", text="Cost/Share")
     table.heading("Total $", text="Total $")
     table.heading("Total %", text="Total %")
@@ -210,7 +314,7 @@ def update_main_window():
     table.column("#10", width=115)
     table.column("#11", width=115)
     stats_frame = ttk.Frame(root)
-    total_value_label = ttk.Label(stats_frame, text=f"Value: ${portfolio.total_value}", font=("Helvetica", 20))
+    total_value_label = ttk.Label(stats_frame, text=f"${portfolio.total_value}", font=("Helvetica", 20))
     daily_gain_label = ttk.Label(stats_frame,
                                  text=f"Daily: ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
                                  font=("Helvetica", 18))
@@ -242,7 +346,7 @@ def update_main_window():
     search_button.grid(padx=5, pady=5, column=0, row=5)
     settings_button = ttk.Button(actions_frame, text="Settings", command=app_settings)
     settings_button.grid(column=1, row=5, padx=5, pady=5)
-    assistant_button = ttk.Button(actions_frame, text="Assistant", command=launch_assistant)
+    assistant_button = ttk.Button(actions_frame, text="Assistant", command=lambda: launch_assistant(None))
     assistant_button.grid(column=2, row=5, padx=5, pady=5)
     quit_button = ttk.Button(actions_frame, text="Quit", command=lambda: quit_app(None))
     quit_button.grid(column=1, row=6, padx=5, pady=5)
@@ -288,8 +392,7 @@ def update_main_window():
 
 
 def load_app():
-    global root, loading_label, portfolio, stats_frame, table_frame, actions_frame, table, refresh_interval, last_refreshed_text, other_loading_label, yet_another_loading_label
-    df = pd.read_csv("portfolio-holdings.csv", header=0)
+    global root, loading_label, portfolio, stats_frame, table_frame, actions_frame, table, refresh_interval, last_refreshed_text, other_loading_label, loading_bar, current_task, df
     for i in range(len(df)):
         symbol = df.loc[i, 'Symbol']
         name = df.loc[i, 'Name']
@@ -297,9 +400,14 @@ def load_app():
         avg_price = df.loc[i, 'AvgPrice']
         new_stock = Stock(symbol, name, shares, avg_price)
         portfolio.add_security(new_stock)
+        current_task += 1
+        loading_bar['value'] = current_task
+        loading_bar.update()
+        root.deiconify()
+        root.update()
     loading_label.destroy()
     other_loading_label.destroy()
-    yet_another_loading_label.destroy()
+    loading_bar.destroy()
     table.config(height=len(portfolio.securities))
     table.bind('<<TreeviewSelect>>', on_stock_selected)
     table.heading("Symbol", text="Symbol")
@@ -307,7 +415,7 @@ def load_app():
     table.heading("Price", text="Price")
     table.heading("Shares", text="Shares")
     table.heading("Value", text="Value")
-    table.heading("Principal", text="Principal")
+    table.heading("Initial", text="Initial")
     table.heading("Cost/Share", text="Cost/Share")
     table.heading("Total $", text="Total $")
     table.heading("Total %", text="Total %")
@@ -331,7 +439,7 @@ def load_app():
     table.column("#10", width=115)
     table.column("#11", width=115)
     portfolio.calculate_total_gain()
-    total_value_label = ttk.Label(stats_frame, text=f"Value: ${portfolio.total_value}", font=("Helvetica", 20))
+    total_value_label = ttk.Label(stats_frame, text=f"${portfolio.total_value}", font=("Helvetica", 20))
     daily_gain_label = ttk.Label(stats_frame,
                                  text=f"Daily: ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
                                  font=("Helvetica", 18))
@@ -360,7 +468,7 @@ def load_app():
     search_button.grid(padx=5, pady=5, column=0, row=5)
     settings_button = ttk.Button(actions_frame, text="Settings", command=app_settings)
     settings_button.grid(column=1, row=5, padx=5, pady=5)
-    assistant_button = ttk.Button(actions_frame, text="Assistant", command=launch_assistant)
+    assistant_button = ttk.Button(actions_frame, text="Assistant", command=lambda: launch_assistant(None))
     assistant_button.grid(column=2, row=5, padx=5, pady=5)
     quit_button = ttk.Button(actions_frame, text="Quit", command=lambda: quit_app(None))
     quit_button.grid(column=1, row=6, padx=5, pady=5)
@@ -561,7 +669,7 @@ def log_sell():
 
 
 def on_stock_selected(event):
-    global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label
+    global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label, loading_bar, current_task, loading_tasks
     root.after_cancel(refresh_interval)
     selected_item = table.selection()[0]
     item_values = table.item(selected_item)['values']
@@ -634,9 +742,9 @@ def on_stock_selected(event):
     price_info_frame.destroy()
     dividend_frame.destroy()
     tool_frame.destroy()
-    loading_label = ttk.Label(root, text="Loading...", font=("Helvetica", 30))
+    loading_label = ttk.Label(root, text="Fetching Data...", font=("Helvetica", 30))
     loading_label.pack(pady=150)
-    other_loading_label = ttk.Label(root, text="Download might take a couple seconds...", font=("Helvetica", 15))
+    other_loading_label = ttk.Label(root, text="This might take a couple seconds...", font=("Helvetica", 15))
     other_loading_label.pack()
     root.deiconify()
     root.update()
@@ -646,7 +754,7 @@ def on_stock_selected(event):
 
 
 def search_stock():
-    global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label
+    global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label
     symbol = askstring(title="Stock Search", prompt="Enter symbol to view stock information").upper()
     if symbol is None or symbol == "" or symbol.isspace():
         return
@@ -727,9 +835,9 @@ def search_stock():
     price_info_frame.destroy()
     dividend_frame.destroy()
     tool_frame.destroy()
-    loading_label = ttk.Label(root, text="Loading...", font=("Helvetica", 30))
+    loading_label = ttk.Label(root, text="Fetching Data...", font=("Helvetica", 30))
     loading_label.pack(pady=150)
-    other_loading_label = ttk.Label(root, text="Download might take a couple seconds...", font=("Helvetica", 15))
+    other_loading_label = ttk.Label(root, text="This might take a couple seconds...", font=("Helvetica", 15))
     other_loading_label.pack()
     root.deiconify()
     root.update()
@@ -825,9 +933,9 @@ def dividend_tracker():
     list_of_dividend_stocks.destroy()
     upcoming_dividends_text.destroy()
     back_button.destroy()
-    loading_label = ttk.Label(root, text="Loading...", font=("Helvetica", 30))
+    loading_label = ttk.Label(root, text="Fetching Data...", font=("Helvetica", 30))
     loading_label.pack(pady=150)
-    other_loading_label = ttk.Label(root, text="Download might take a couple seconds...", font=("Helvetica", 15))
+    other_loading_label = ttk.Label(root, text="This might take a couple seconds...", font=("Helvetica", 15))
     other_loading_label.pack()
     root.deiconify()
     root.update()
@@ -1122,9 +1230,9 @@ def portfolio_summary():
     allocation_frame.destroy()
     insights_frame.destroy()
     save_button.destroy()
-    loading_label = ttk.Label(root, text="Loading...", font=("Helvetica", 30))
+    loading_label = ttk.Label(root, text="Fetching Data...", font=("Helvetica", 30))
     loading_label.pack(pady=150)
-    other_loading_label = ttk.Label(root, text="Download might take a couple seconds...", font=("Helvetica", 15))
+    other_loading_label = ttk.Label(root, text="This might take a couple seconds...", font=("Helvetica", 15))
     other_loading_label.pack()
     root.deiconify()
     root.update()
@@ -1328,6 +1436,7 @@ root.geometry("1675x600")
 root.protocol("WM_DELETE_WINDOW", lambda: quit_app(None))
 root.bind("<r>", restart_app)
 root.bind("<Escape>", quit_app)
+root.bind("<Return>", launch_assistant)
 if not os.path.exists("Settings/"):
     os.mkdir("Settings")
 if not os.path.exists("Settings/settings.json"):
@@ -1350,12 +1459,17 @@ if settings_json["dark-mode"] == 1:
 else:
     sv_ttk.set_theme("light")
 if os.path.exists("portfolio-holdings.csv"):
+    df = pd.read_csv("portfolio-holdings.csv", header=0)
     loading_label = ttk.Label(root, text="Stonks 📈", font=("Helvetica", 30))
     loading_label.pack(pady=150)
-    other_loading_label = ttk.Label(root, text="By Sreekar Palla", font=("Helvetica", 15))
+    other_loading_label = ttk.Label(root, text="Fetching Data...", font=("Helvetica", 15))
     other_loading_label.pack()
-    yet_another_loading_label = ttk.Label(root, text="Loading might take a couple seconds...", font=("Helvetica", 15))
-    yet_another_loading_label.pack(pady=115)
+    loading_bar = ttk.Progressbar(root, orient="horizontal", length=500, mode="determinate")
+    loading_bar.pack(pady=10)
+    loading_tasks = len(df)
+    current_task = 0
+    loading_bar['maximum'] = loading_tasks
+    loading_bar['value'] = current_task
     root.after(100, load_app)
 else:
     headers = ["Symbol", "Name", "Shares", "AvgPrice"]
@@ -1370,7 +1484,7 @@ launch_time = time.strftime('%l:%M:%S')
 last_refreshed_text = ttk.Label(root, text=f"↻ {launch_time}", font=("Helvetica", 15))
 actions_frame = ttk.Frame(root)
 table = ttk.Treeview(table_frame, columns=(
-    "Symbol", "Name", "Price", "Shares", "Value", "Principal", "Cost/Share", "Total $", "Total %",
+    "Symbol", "Name", "Price", "Shares", "Value", "Initial", "Cost/Share", "Total $", "Total %",
     "Day $", "Day %"), height=len(portfolio.securities))
 refresh_interval = "None"
 root.mainloop()
