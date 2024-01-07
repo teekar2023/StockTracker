@@ -5,18 +5,23 @@
 # Quick Start
 1. Install dependencies:
    * Python 3
-     * pandas
-     * yfinance
-     * sv-ttk
-     * matplotlib
-2. Download [PortfolioTracker.pyw](https://github.com/teekar2023/StockTracker/blob/master/PortfolioTracker.pyw)
-3.  Run in terminal using `python3 PortfolioTracker.pyw`
+     * Run these commands in terminal
+     * `pip install pandas`
+     * `pip install yfinance`
+     * `pip install sv-ttk`
+     * `pip install matplotlib`
+2. Download [PortfolioTracker.pyw](https://github.com/teekar2023/StockTracker/blob/master/PortfolioTracker.pyw) to any folder
+3.  Navigate to folder and run `python PortfolioTracker.pyw`
 4. Configure your portfolio with the buttons
 
 # Features
+## Assistant
+### Get quick answers about your portfolio data
+![Assistant Prompt](resources/readme/assistant.png)
 ## Summary
 ### Allocation information, gain/loss insights, and more coming
 ![Summary Page](https://github.com/teekar2023/StockTracker/blob/master/resources/readme/summary_page.png?raw=true)
+![Sector Allocation](https://github.com/teekar2023/StockTracker/blob/master/resources/readme/sector_allocation.png?raw=true)
 ---
 ## Dividends
 ### Dividend yields, forecasts, and recently received dividends
@@ -29,9 +34,11 @@
 ## Options
 ### Customization, price alerts, and other settings
 ![Settings Page](https://github.com/teekar2023/StockTracker/blob/master/resources/readme/settings_page.png?raw=true)
+![Alerts Json File](https://github.com/teekar2023/StockTracker/blob/master/resources/readme/alerts_json.png?raw=true)
 
 # TODO
 * Stock specific graphs, news, and earnings information
 * Portfolio benchmark tool
 * Portfolio graphs in main window and summary window
 * ETF allocation analysis
+* Add ai assistant

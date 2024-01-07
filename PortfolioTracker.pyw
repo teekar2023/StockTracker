@@ -15,6 +15,9 @@ import platform
 import sv_ttk
 import csv
 from matplotlib import pyplot as plt
+import nltk
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.naive_bayes import MultinomialNB
 
 
 class Stock:
@@ -94,6 +97,65 @@ class Portfolio:
             if security.symbol == symbol:
                 return security
         return -1
+
+
+class Assistant:
+    def __init__(self):
+        self.training_data = [  # greeting, goodbye, current-value, thanks
+            ("hello there", "greeting"),
+            ("hi", "greeting"),
+            ("good morning", "greeting"),
+            ("have a good day", "goodbye"),
+            ("goodbye", "goodbye"),
+            ("bye", "goodbye"),
+            ("hey", "greeting"),
+            ("net worth", "current-value"),
+            ("current value", "current-value"),
+            ("my money", "current-value"),
+            ("thank you", "thanks"),
+            ("helpful", "thanks")
+        ]
+        nltk.download('punkt')
+        self.stemmer = nltk.stem.PorterStemmer()
+        self.vectorizer = TfidfVectorizer(preprocessor=self.preprocess_text)
+        x_train = self.vectorizer.fit_transform([text for text, tag in self.training_data])
+        y_train = [tag for text, tag in self.training_data]
+        self.model = MultinomialNB()
+        self.model.fit(x_train, y_train)
+        print("Assistant initialized")
+        return
+
+    def preprocess_text(self, text):
+        tokens = nltk.word_tokenize(text.lower())
+        stemmed_tokens = [self.stemmer.stem(token) for token in tokens]
+        return " ".join(stemmed_tokens)
+
+    def get_tag(self, query):
+        query_vec = self.vectorizer.transform([query])
+        predicted_tag = self.model.predict(query_vec)[0]
+        return predicted_tag
+
+    def get_assistant_response(self, prompt):
+        response = ""
+        tag = self.get_tag(prompt)
+        print(tag)
+        if tag == "greeting":
+            response = "Hello"
+        if tag == "goodbye":
+            response = "See you later"
+        if tag == "current-value":
+            response = f"Your investments current total value is ${portfolio.total_value}"
+        if tag == "thanks":
+            response = "Happy to help"
+        return response
+
+
+def launch_assistant():
+    print("Launching assistant")
+    root.after_cancel(refresh_interval)
+    showinfo(title="", message=assistant.get_assistant_response(askstring(title="Portfolio Assistant", prompt="How can I help?")))
+    update_main_window()
+    return
 
 
 def update_main_window():
@@ -180,8 +242,10 @@ def update_main_window():
     search_button.grid(padx=5, pady=5, column=0, row=5)
     settings_button = ttk.Button(actions_frame, text="Settings", command=app_settings)
     settings_button.grid(column=1, row=5, padx=5, pady=5)
-    exit_button = ttk.Button(actions_frame, text="Quit", command=lambda: quit_app(None))
-    exit_button.grid(column=2, row=5, padx=5, pady=5)
+    assistant_button = ttk.Button(actions_frame, text="Assistant", command=launch_assistant)
+    assistant_button.grid(column=2, row=5, padx=5, pady=5)
+    quit_button = ttk.Button(actions_frame, text="Quit", command=lambda: quit_app(None))
+    quit_button.grid(column=1, row=6, padx=5, pady=5)
     stats_frame.grid(padx=10, pady=10, column=0, row=0)
     table.pack(padx=5, pady=5)
     table_frame.grid(padx=10, pady=10, column=0, row=1)
@@ -296,8 +360,10 @@ def load_app():
     search_button.grid(padx=5, pady=5, column=0, row=5)
     settings_button = ttk.Button(actions_frame, text="Settings", command=app_settings)
     settings_button.grid(column=1, row=5, padx=5, pady=5)
-    exit_button = ttk.Button(actions_frame, text="Quit", command=lambda: quit_app(None))
-    exit_button.grid(column=2, row=5, padx=5, pady=5)
+    assistant_button = ttk.Button(actions_frame, text="Assistant", command=launch_assistant)
+    assistant_button.grid(column=2, row=5, padx=5, pady=5)
+    quit_button = ttk.Button(actions_frame, text="Quit", command=lambda: quit_app(None))
+    quit_button.grid(column=1, row=6, padx=5, pady=5)
     stats_frame.grid(padx=10, pady=10, column=0, row=0)
     table.pack(padx=5, pady=5)
     table_frame.grid(padx=10, pady=10, column=0, row=1)
@@ -1069,11 +1135,11 @@ def portfolio_summary():
 
 def save_portfolio_summary():
     filename = filedialog.asksaveasfilename(
-            initialdir=os.getcwd(),
-            initialfile="PortfolioSummary.txt",
-            title="Select or Create TXT File",
-            defaultextension=".txt",
-            filetypes=(("Text files", "*.txt"), ("All files", "*.*"))
+        initialdir=os.getcwd(),
+        initialfile="PortfolioSummary.txt",
+        title="Select or Create TXT File",
+        defaultextension=".txt",
+        filetypes=(("Text files", "*.txt"), ("All files", "*.*"))
     )
     output = "-----PORTFOLIO SUMMARY-----\n"
     output += "---Basic Info---\n"
@@ -1168,6 +1234,7 @@ def save_portfolio_summary():
     output += "Symbol | Shares | Invested | Avg Cost/Share\n"
     for stock in portfolio.securities:
         output += f"{stock.symbol} | {round(stock.shares, 3)} | ${round(stock.initial_value, 2)} | ${round(stock.avg_price, 2)}\n"
+    # TODO add dividend info
     with open(filename, "w") as file:
         file.write(output)
         file.close()
@@ -1254,6 +1321,7 @@ def quit_app(event):
 
 
 portfolio = Portfolio()
+assistant = Assistant()
 root = tk.Tk()
 root.title("Stonks 📈")
 root.geometry("1675x600")
