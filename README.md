@@ -1,6 +1,5 @@
 # Portfolio Tracker
 ## View important portfolio information and visualize data to stay informed and make educated decisions
-![Main Page](resources/readme/main_page.png)
 
 # Quick Start
 1. Install dependencies:
@@ -15,6 +14,9 @@
 4. Configure your portfolio with the buttons
 
 # Features
+## Homepage
+### Holdings information display, quick access to everything the app has to offer
+![Main Page](resources/readme/main_page.png)
 ## Assistant
 ### Get quick answers about your portfolio data
 ![Assistant Prompt](resources/readme/assistant.png)
@@ -27,11 +29,10 @@
 ### Dividend yields, forecasts, and recently received dividends
 ![Dividend Page](resources/readme/dividend_page.png)
 ---
-## Ticker Data
+## Data
 ### Basic information, market data, holdings, and more
 ![Stock Page](resources/readme/stock_page.png)
 ---
 ## Options
 ### Customization, price alerts, and other settings
 ![Settings Page](resources/readme/settings_page.png)
-![Alerts Json File](resources/readme/alerts_json.png)

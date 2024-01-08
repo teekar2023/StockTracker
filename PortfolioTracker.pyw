@@ -1,5 +1,6 @@
 import random
 import tkinter as tk
+import webbrowser
 from tkinter import ttk, filedialog
 from tkinter.messagebox import askyesno, showinfo
 from tkinter.simpledialog import askstring
@@ -106,6 +107,8 @@ class Assistant:
         self.training_data = [
             ("hello there", "greeting"),
             ("hi", "greeting"),
+            ("whats up", "greeting"),
+            ("whats good", "greeting"),
             ("how are you", "greeting"),
             ("good morning", "greeting"),
             ("good evening", "greeting"),
@@ -113,6 +116,8 @@ class Assistant:
             ("goodbye", "goodbye"),
             ("bye", "goodbye"),
             ("hey", "greeting"),
+            ("exit", "goodbye"),
+            ("cancel", "goodbye"),
             ("net worth", "current-value"),
             ("current value", "current-value"),
             ("my money", "current-value"),
@@ -169,8 +174,12 @@ class Assistant:
             ("how can you help me", "help"),
             ("what are you", "help"),
             ("who are you", "help"),
+            ("github repository", "source-code"),
+            ("source code", "source-code"),
+            ("show me your programming", "source-code"),
+            ("show me how you work", "source-code"),
+            ("how do you work", "source-code")
         ]
-        nltk.download('punkt')
         self.stemmer = nltk.stem.PorterStemmer()
         self.vectorizer = TfidfVectorizer(preprocessor=self.preprocess_text)
         x_train = self.vectorizer.fit_transform([text for text, tag in self.training_data])
@@ -226,28 +235,29 @@ class Assistant:
         if tag == "investment-ideas":
             pass  # TODO
         if tag == "close-time":
-            current_time = datetime.now(pytz.timezone('US/Eastern'))
-            target_time = current_time.replace(hour=16, minute=0, second=0, microsecond=0)
-            if current_time > target_time:
-                target_time += timedelta(days=1)
-            time_until_4pm = target_time - current_time
-            response = f"Time until market close is {time_until_4pm}"
+            now = datetime.now(pytz.timezone('US/Eastern'))
+            close_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
+            if close_time < now:
+                response = "Market is currently closed"
+                return response
+            time_delta = close_time - now
+            response = f"Time until market close: {str(time_delta).split('.')[0]}"
         if tag == "open-time":
-            current_time = datetime.now(pytz.timezone('US/Eastern'))
-            target_time = current_time.replace(hour=9, minute=30, second=0, microsecond=0)
-            if current_time > target_time:
-                close_time = current_time.replace(hour=16, minute=0, second=0, microsecond=0)
-                if current_time >= close_time:
-                    time_until_930 = target_time - current_time
-                    response = f"Time until market open is {time_until_930}"
-                else:
-                    response = "The market is currently open"
-            else:
-                time_until_930 = target_time - current_time
-                response = f"Time until market open is {time_until_930}"
+            now = datetime.now(pytz.timezone('US/Eastern'))
+            open_time = now.replace(hour=9, minute=30, second=0, microsecond=0)
+            if open_time < now:
+                open_time += timedelta(days=1)
+            if open_time < now:
+                response = "Market is currently open."
+                return response
+            time_delta = open_time - now
+            response = f"Time until market open: {str(time_delta).split('.')[0]}"
         if tag == "help":
             response = ("I am your portfolio tracker assistant. I can help you quickly get what you need to know. Try "
-                        "asking me anything about your portfolio data")
+                        "asking me something about your portfolio data")
+        if tag == "source-code":
+            response = "NONE"
+            webbrowser.open("https://github.com/teekar2023/StockTracker/")
         return response
 
 
@@ -314,11 +324,11 @@ def update_main_window():
     table.column("#10", width=115)
     table.column("#11", width=115)
     stats_frame = ttk.Frame(root)
-    total_value_label = ttk.Label(stats_frame, text=f"${portfolio.total_value}", font=("Helvetica", 20))
+    total_value_label = ttk.Label(stats_frame, text=f"Value | ${portfolio.total_value}", font=("Helvetica", 20))
     daily_gain_label = ttk.Label(stats_frame,
-                                 text=f"Daily: ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
+                                 text=f"Daily | ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
                                  font=("Helvetica", 18))
-    total_gain_label = ttk.Label(stats_frame, text=f"Total: ${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
+    total_gain_label = ttk.Label(stats_frame, text=f"Total | ${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
                                  font=("Helvetica", 18))
     total_value_label.grid(column=0, row=0, padx=5, pady=5)
     daily_gain_label.grid(column=0, row=1, padx=5, pady=5)
@@ -439,11 +449,11 @@ def load_app():
     table.column("#10", width=115)
     table.column("#11", width=115)
     portfolio.calculate_total_gain()
-    total_value_label = ttk.Label(stats_frame, text=f"${portfolio.total_value}", font=("Helvetica", 20))
+    total_value_label = ttk.Label(stats_frame, text=f"Value | ${portfolio.total_value}", font=("Helvetica", 20))
     daily_gain_label = ttk.Label(stats_frame,
-                                 text=f"Daily: ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
+                                 text=f"Daily | ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
                                  font=("Helvetica", 18))
-    total_gain_label = ttk.Label(stats_frame, text=f"Total: ${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
+    total_gain_label = ttk.Label(stats_frame, text=f"Total | ${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
                                  font=("Helvetica", 18))
     total_value_label.grid(column=0, row=0, padx=5, pady=5)
     daily_gain_label.grid(column=0, row=1, padx=5, pady=5)
@@ -742,7 +752,7 @@ def on_stock_selected(event):
     price_info_frame.destroy()
     dividend_frame.destroy()
     tool_frame.destroy()
-    loading_label = ttk.Label(root, text="Fetching Data...", font=("Helvetica", 30))
+    loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 30))
     loading_label.pack(pady=150)
     other_loading_label = ttk.Label(root, text="This might take a couple seconds...", font=("Helvetica", 15))
     other_loading_label.pack()
@@ -835,7 +845,7 @@ def search_stock():
     price_info_frame.destroy()
     dividend_frame.destroy()
     tool_frame.destroy()
-    loading_label = ttk.Label(root, text="Fetching Data...", font=("Helvetica", 30))
+    loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 30))
     loading_label.pack(pady=150)
     other_loading_label = ttk.Label(root, text="This might take a couple seconds...", font=("Helvetica", 15))
     other_loading_label.pack()
@@ -933,7 +943,7 @@ def dividend_tracker():
     list_of_dividend_stocks.destroy()
     upcoming_dividends_text.destroy()
     back_button.destroy()
-    loading_label = ttk.Label(root, text="Fetching Data...", font=("Helvetica", 30))
+    loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 30))
     loading_label.pack(pady=150)
     other_loading_label = ttk.Label(root, text="This might take a couple seconds...", font=("Helvetica", 15))
     other_loading_label.pack()
@@ -1230,7 +1240,7 @@ def portfolio_summary():
     allocation_frame.destroy()
     insights_frame.destroy()
     save_button.destroy()
-    loading_label = ttk.Label(root, text="Fetching Data...", font=("Helvetica", 30))
+    loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 30))
     loading_label.pack(pady=150)
     other_loading_label = ttk.Label(root, text="This might take a couple seconds...", font=("Helvetica", 15))
     other_loading_label.pack()
@@ -1462,7 +1472,9 @@ if os.path.exists("portfolio-holdings.csv"):
     df = pd.read_csv("portfolio-holdings.csv", header=0)
     loading_label = ttk.Label(root, text="Stonks 📈", font=("Helvetica", 30))
     loading_label.pack(pady=150)
-    other_loading_label = ttk.Label(root, text="Fetching Data...", font=("Helvetica", 15))
+    loading_messages = ["Fetching Data...", "Downloading Market Info...", "Calculating Net Worth...",
+                        "Planting Money Tree...", "Brewing Profit Potion...", "Hold On...", "Getting Holdings..."]
+    other_loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 15))
     other_loading_label.pack()
     loading_bar = ttk.Progressbar(root, orient="horizontal", length=500, mode="determinate")
     loading_bar.pack(pady=10)
