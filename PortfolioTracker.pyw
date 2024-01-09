@@ -2,7 +2,7 @@ import random
 import tkinter as tk
 import webbrowser
 from tkinter import ttk, filedialog
-from tkinter.messagebox import askyesno, showinfo
+from tkinter.messagebox import askyesno, showinfo, showerror
 from tkinter.simpledialog import askstring
 
 import pandas as pd
@@ -48,7 +48,11 @@ class Stock:
         self.current_value = 0.0
         stock_data = yf.download(self.symbol, period="1d", prepost=True)
         open_price = yf.Ticker(self.symbol).info['previousClose']
-        self.current_price = stock_data['Close'].iloc[-1]
+        try:
+            self.current_price = stock_data['Close'].iloc[-1]
+        except Exception as e:
+            showerror(title="Error", message=f"Error downloading stock data from yahoo finance: {e}")
+            restart_app(None)
         self.absolute_gain = (self.current_price - self.avg_price) * self.shares
         self.relative_gain = (self.absolute_gain / self.initial_value) * 100
         self.daily_abs_gain = (self.current_price - open_price) * self.shares
@@ -124,11 +128,17 @@ class Assistant:
             ("my holdings", "current-value"),
             ("thank you", "thanks"),
             ("been helpful", "thanks"),
-            ("how is the market today", "day-change"),
+            ("market today", "day-change"),
             ("portfolio today", "day-change"),
+            ("change today", "day-change"),
+            ("how did i do today", "day-change"),
             ("daily change", "day-change"),
+            ("how much have i made today", "day-change"),
+            ("what have i made today", "day-change"),
             ("intraday performance", "day-change"),
+            ("whats happening today", "day-change"),
             ("total change", "total-performance"),
+            ("what have i made", "total-performance"),
             ("portfolio performance", "total-performance"),
             ("how are my stocks doing", "total-performance"),
             ("is my portfolio good", "total-performance"),
@@ -151,34 +161,65 @@ class Assistant:
             ("where are my stocks from", "country-allocation"),
             ("country allocation", "country-allocation"),
             ("what countries am i investing in", "country-allocation"),
-            ("when are my next dividends", "next-dividends"),
             ("next dividends", "next-dividends"),
             ("dividend calendar", "next-dividends"),
+            ("dividends today", "next-dividends"),
+            ("dividends coming up", "next-dividends"),
+            ("dividend payouts today", "next-dividends"),
             ("what should i invest in", "investment-ideas"),
             ("any ideas on what do buy", "investment-ideas"),
             ("what should i put my money into", "investment-ideas"),
+            ("what type of stocks should i buy", "investment-ideas"),
             ("time left in day", "close-time"),
             ("how long until market close", "close-time"),
             ("what time can i trade until", "close-time"),
-            ("how much longer can i trade for", "close-time"),
+            ("how long can i trade", "close-time"),
             ("market close", "close-time"),
             ("market open", "open-time"),
             ("how long until the day starts", "open-time"),
-            ("how long until i can trade", "open-time"),
+            ("how long until trade again", "open-time"),
             ("when does the market open", "open-time"),
             ("how long until i can trade", "open-time"),
             ("how much longer do i have to wait to trade", "open-time"),
             ("help", "help"),
             ("what can you do", "help"),
             ("what can you tell me", "help"),
-            ("how can you help me", "help"),
+            ("how can you help", "help"),
             ("what are you", "help"),
             ("who are you", "help"),
             ("github repository", "source-code"),
             ("source code", "source-code"),
             ("show me your programming", "source-code"),
             ("show me how you work", "source-code"),
-            ("how do you work", "source-code")
+            ("how do you work", "source-code"),
+            ("most held sectors", "top-sector"),
+            ("top sectors", "top-sector"),
+            ("whats my best sector", "top-sector"),
+            ("mostly invested sectors", "top-sector"),
+            ("sectors i have lot of", "top-sector"),
+            ("least held sectors", "low-sector"),
+            ("sectors should i invest in", "low-sector"),
+            ("least sectors", "low-sector"),
+            ("low sectors", "low-sector"),
+            ("sectors to invest in", "low-sector"),
+            ("sectors to expand", "low-sectors"),
+            ("sectors to buy", "low-sectors"),
+            ("balance portfolio", "low-sectors"),
+            ("least invested sectors", "low-sector"),
+            ("whats my dividend yield", "dividend-yield"),
+            ("what do i make from dividends", "dividend-yield"),
+            ("dividend yields", "dividend-yield"),
+            ("dividend returns", "dividend-yield"),
+            ("time left in quarter", "quarter-time"),
+            ("when does quarter end", "quarter-time"),
+            ("how long is the quarter", "quarter-time"),
+            ("best stocks today", "day-stock-rating"),
+            ("worst stocks today", "day-stock-rating"),
+            ("top gainers today", "day-stock-rating"),
+            ("top losers today", "day-stock-rating"),
+            ("todays positions", "day-stock-rating"),
+            ("whats doing good today", "day-stock-rating"),
+            ("whats doing bad today", "day-stock-rating")
         ]
         self.stemmer = nltk.stem.PorterStemmer()
         self.vectorizer = TfidfVectorizer(preprocessor=self.preprocess_text)
@@ -199,8 +240,12 @@ class Assistant:
         predicted_tag = self.model.predict(query_vec)[0]
         return predicted_tag
 
-    def get_assistant_response(self, prompt):
-        tag = self.get_tag(prompt)
+    def get_response(self, prompt):
+        try:
+            tag = self.get_tag(prompt)
+        except Exception:
+            response = "NONE"
+            return response
         response = tag
         if tag == "greeting":
             response = "Hello"
@@ -245,10 +290,11 @@ class Assistant:
         if tag == "open-time":
             now = datetime.now(pytz.timezone('US/Eastern'))
             open_time = now.replace(hour=9, minute=30, second=0, microsecond=0)
-            if open_time < now:
+            close_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
+            if open_time < now > close_time:
                 open_time += timedelta(days=1)
-            if open_time < now:
-                response = "Market is currently open."
+            elif open_time < now:
+                response = "Market is currently open"
                 return response
             time_delta = open_time - now
             response = f"Time until market open: {str(time_delta).split('.')[0]}"
@@ -258,16 +304,49 @@ class Assistant:
         if tag == "source-code":
             response = "NONE"
             webbrowser.open("https://github.com/teekar2023/StockTracker/")
+        if tag == "top-sector":
+            pass  # TODO
+        if tag == "low-sector":
+            pass  # TODO
+        if tag == "dividend-yield":
+            pass  # TODO
+        if tag == "quarter-time":
+            pass  # TODO
+        if tag == "day-stock-rating":
+            pass  # TODO
         return response
 
 
 def launch_assistant(event):
     root.after_cancel(refresh_interval)
-    list_of_prompts = ["How can i help", "What do you need", "Ask me anything about your portfolio", "I'm ready to help"]
-    res = assistant.get_assistant_response(askstring(title="Portfolio Assistant", prompt=random.choice(list_of_prompts)))
-    if res != "NONE":
-        showinfo(title="Portfolio Assistant", message=res)
-    update_main_window()
+    assistant_window = tk.Toplevel(root)
+    assistant_window.geometry("400x500")
+    assistant_window.title("Portfolio Assistant")
+    chat_frame = ttk.Frame(assistant_window)
+    chat_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+    chat_text = tk.Text(chat_frame, wrap=tk.WORD, width=40, height=15, font=("Helvetica", 16))
+    chat_text.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=10)
+    input_frame = ttk.Frame(assistant_window)
+    input_frame.pack(side=tk.BOTTOM, fill=tk.X)
+
+    input_box = ttk.Entry(input_frame, width=40, font=("Helvetica", 12))
+    input_box.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, pady=5)
+
+    send_button = ttk.Button(input_frame, text="Send", command=lambda: res(input_box.get(), chat_text, input_box))
+    send_button.pack(side=tk.RIGHT, padx=10, pady=5)
+
+    list_of_prompts = ["How can I help?", "What do you need?", "Got a question about your portfolio?",
+                       "What can I do for you?", "Do you have a question for me?", "Anything I can help with?"]
+    chat_text.insert(tk.END, random.choice(list_of_prompts) + "\n\n")
+    assistant_window.protocol("WM_DELETE_WINDOW", update_main_window)
+
+
+def res(q, box, input_box):
+    input_box.delete(0, "end")
+    box.insert(tk.END, f"You: {q}\n\n")
+    response = assistant.get_response(q)
+    if response != "NONE":
+        box.insert(tk.END, f"Assistant: {response}\n\n\n")
     return
 
 
@@ -1473,13 +1552,14 @@ if os.path.exists("portfolio-holdings.csv"):
     loading_label = ttk.Label(root, text="Stonks 📈", font=("Helvetica", 30))
     loading_label.pack(pady=150)
     loading_messages = ["Fetching Data...", "Downloading Market Info...", "Calculating Net Worth...",
-                        "Planting Money Tree...", "Brewing Profit Potion...", "Hold On...", "Getting Holdings..."]
+                        "Planting Money Tree...", "Brewing Profit Potion...", "Loading Portfolio...",
+                        "Getting Holdings...", "Worshipping Investment Gods...", "Building Database..."]
     other_loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 15))
     other_loading_label.pack()
     loading_bar = ttk.Progressbar(root, orient="horizontal", length=500, mode="determinate")
     loading_bar.pack(pady=10)
-    loading_tasks = len(df)
-    current_task = 0
+    loading_tasks = len(df) + 1
+    current_task = 1
     loading_bar['maximum'] = loading_tasks
     loading_bar['value'] = current_task
     root.after(100, load_app)
@@ -1488,7 +1568,7 @@ else:
     with open('portfolio-holdings.csv', 'w+', newline='') as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(headers)
-        csv_writer.writerow(["AAPL", "Apple", 1, 150.00])
+        csv_writer.writerow(["AAPL", "Apple (SAMPLE NOT REAL)", 1, 150.00])
     restart_app(None)
 table_frame = ttk.LabelFrame(root, text="Holdings")
 stats_frame = ttk.Frame(root)

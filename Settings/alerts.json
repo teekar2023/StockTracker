@@ -5,11 +5,6 @@
         "tresh": "Rises Above"
     },
     {
-        "symbol": "NVDA",
-        "target-price": 500,
-        "tresh": "Rises Above"
-    },
-    {
         "symbol": "AAPL",
         "target-price": 170,
         "tresh": "Falls Below"
