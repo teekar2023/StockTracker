@@ -128,6 +128,9 @@ class Assistant:
             ("my holdings", "current-value"),
             ("thank you", "thanks"),
             ("been helpful", "thanks"),
+            ("thx", "thanks"),
+            ("thanks", "thanks"),
+            ("been useful", "thanks"),
             ("market today", "day-change"),
             ("portfolio today", "day-change"),
             ("change today", "day-change"),
@@ -250,7 +253,7 @@ class Assistant:
         if tag == "greeting":
             response = "Hello"
         if tag == "goodbye":
-            response = "See you later"
+            response = "Goodbye"
         if tag == "current-value":
             response = f"Your investments current total value is ${portfolio.total_value}"
         if tag == "thanks":
@@ -270,10 +273,10 @@ class Assistant:
         if tag == "worst-stocks":
             pass  # TODO
         if tag == "sector-allocation":
-            response = "NONE"
+            response = "Here is your sector allocation"
             portfolio_sector_allocation()
         if tag == "country-allocation":
-            response = "NONE"
+            response = "Here is your country allocation"
             portfolio_country_allocation()
         if tag == "next-dividends":
             pass  # TODO
@@ -302,7 +305,7 @@ class Assistant:
             response = ("I am your portfolio tracker assistant. I can help you quickly get what you need to know. Try "
                         "asking me something about your portfolio data")
         if tag == "source-code":
-            response = "NONE"
+            response = "GitHub Repository was opened in browser"
             webbrowser.open("https://github.com/teekar2023/StockTracker/")
         if tag == "top-sector":
             pass  # TODO
@@ -332,7 +335,7 @@ def launch_assistant(event):
     input_box = ttk.Entry(input_frame, width=40, font=("Helvetica", 12))
     input_box.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, pady=5)
 
-    send_button = ttk.Button(input_frame, text="Send", command=lambda: res(input_box.get(), chat_text, input_box))
+    send_button = ttk.Button(input_frame, text="Send", command=lambda: res(input_box.get(), chat_text, input_box, assistant_window))
     send_button.pack(side=tk.RIGHT, padx=10, pady=5)
 
     list_of_prompts = ["How can I help?", "What do you need?", "Got a question about your portfolio?",
@@ -341,13 +344,18 @@ def launch_assistant(event):
     assistant_window.protocol("WM_DELETE_WINDOW", update_main_window)
 
 
-def res(q, box, input_box):
+def res(q, box, input_box, window):
+    if q == "" or q.isspace():
+        return
     input_box.delete(0, "end")
-    box.insert(tk.END, f"You: {q}\n\n")
+    box.insert(tk.END, f"You: {q}\n")
     response = assistant.get_response(q)
     if response != "NONE":
-        box.insert(tk.END, f"Assistant: {response}\n\n\n")
-    return
+        box.insert(tk.END, f"Assistant: {response}\n\n")
+        if response == "Goodbye":
+            window.destroy()
+            update_main_window()
+    box.yview(tk.END)
 
 
 def update_main_window():
@@ -450,21 +458,33 @@ def update_main_window():
     alerts_json = json.load(open("Settings/alerts.json", "r"))
     triggered_alerts = []
     for alert in alerts_json:
-        stock_data = portfolio.get_security_by_symbol(alert['symbol'])
-        try:
-            if alert["tresh"] == "Rises Above":
-                if stock_data.current_price >= alert["target-price"]:
+        if alert["symbol"] == "PORTFOLIO":
+            if alert['tresh'] == "Rises Above":
+                if portfolio.total_value >= alert["target-price"]:
                     showinfo(title="Custom Alert",
-                             message=f"{alert["symbol"]} rose above {alert["target-price"]}. This alert will be deleted")
+                             message=f"Portfolio value rose above {alert["target-price"]}. This alert will be deleted")
                     triggered_alerts.append(alert)
             else:
-                if stock_data.current_price <= alert["target-price"]:
+                if portfolio.total_value <= alert["target-price"]:
                     showinfo(title="Custom Alert",
-                             message=f"{alert["symbol"]} fell below {alert["target-price"]}. This alert will be deleted")
+                             message=f"Portfolio value fell below {alert["target-price"]}. This alert will be deleted")
                     triggered_alerts.append(alert)
-            pass
-        except Exception:
-            pass
+        else:
+            stock_data = portfolio.get_security_by_symbol(alert['symbol'])
+            try:
+                if alert["tresh"] == "Rises Above":
+                    if stock_data.current_price >= alert["target-price"]:
+                        showinfo(title="Custom Alert",
+                                 message=f"{alert["symbol"]} rose above {alert["target-price"]}. This alert will be deleted")
+                        triggered_alerts.append(alert)
+                else:
+                    if stock_data.current_price <= alert["target-price"]:
+                        showinfo(title="Custom Alert",
+                                 message=f"{alert["symbol"]} fell below {alert["target-price"]}. This alert will be deleted")
+                        triggered_alerts.append(alert)
+                pass
+            except Exception:
+                pass
     new_alerts = []
     for alert in alerts_json:
         if alert not in triggered_alerts:
@@ -573,21 +593,33 @@ def load_app():
     alerts_json = json.load(open("Settings/alerts.json", "r"))
     triggered_alerts = []
     for alert in alerts_json:
-        stock_data = portfolio.get_security_by_symbol(alert['symbol'])
-        try:
-            if alert["tresh"] == "Rises Above":
-                if stock_data.current_price >= alert["target-price"]:
+        if alert["symbol"] == "PORTFOLIO":
+            if alert['tresh'] == "Rises Above":
+                if portfolio.total_value >= alert["target-price"]:
                     showinfo(title="Custom Alert",
-                             message=f"{alert["symbol"]} rose above {alert["target-price"]}. This alert will be deleted")
+                             message=f"Portfolio value rose above {alert["target-price"]}. This alert will be deleted")
                     triggered_alerts.append(alert)
             else:
-                if stock_data.current_price <= alert["target-price"]:
+                if portfolio.total_value <= alert["target-price"]:
                     showinfo(title="Custom Alert",
-                             message=f"{alert["symbol"]} fell below {alert["target-price"]}. This alert will be deleted")
+                             message=f"Portfolio value fell below {alert["target-price"]}. This alert will be deleted")
                     triggered_alerts.append(alert)
-            pass
-        except Exception:
-            pass
+        else:
+            stock_data = portfolio.get_security_by_symbol(alert['symbol'])
+            try:
+                if alert["tresh"] == "Rises Above":
+                    if stock_data.current_price >= alert["target-price"]:
+                        showinfo(title="Custom Alert",
+                                message=f"{alert["symbol"]} rose above {alert["target-price"]}. This alert will be deleted")
+                        triggered_alerts.append(alert)
+                else:
+                    if stock_data.current_price <= alert["target-price"]:
+                        showinfo(title="Custom Alert",
+                                message=f"{alert["symbol"]} fell below {alert["target-price"]}. This alert will be deleted")
+                        triggered_alerts.append(alert)
+                pass
+            except Exception:
+                pass
     new_alerts = []
     for alert in alerts_json:
         if alert not in triggered_alerts:
@@ -1116,7 +1148,7 @@ def create_alert():
     create_alert_title.pack(padx=5, pady=5)
     symbol_entry_label = ttk.Label(create_alert_window, text="Symbol")
     symbol_entry_label.pack(padx=5, pady=5)
-    symbol_entry = ttk.Entry(create_alert_window, width=6)
+    symbol_entry = ttk.Entry(create_alert_window, width=10)
     symbol_entry.pack(padx=5, pady=5)
     price_entry_label = ttk.Label(create_alert_window, text="Price")
     price_entry_label.pack(padx=5, pady=5)
@@ -1136,9 +1168,14 @@ def create_alert():
     alerts = []
     for alert in alerts_json:
         alerts.append(alert)
+    symbol_entry_value = symbol_entry.get().upper()
+    if symbol_entry_value == "P" or symbol_entry_value == "PORTFOLIO" or symbol_entry_value == "PORTFOLIO VALUE" or symbol_entry_value == "VALUE":
+        new_symbol = "PORTFOLIO"
+    else:
+        new_symbol = symbol_entry_value
     new_alert = {
-        "symbol": symbol_entry.get(),
-        "target-price": price_entry.get(),
+        "symbol": new_symbol,
+        "target-price": float(price_entry.get()),
         "tresh": tresh_dropdown.get()
     }
     alerts.append(new_alert)
