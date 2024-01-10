@@ -1,4 +1,5 @@
 {
     "refresh-interval": 7,
-    "dark-mode": 1
+    "dark-mode": 1,
+    "eod-summary": 1
 }

@@ -1,7 +1,7 @@
 [
     {
         "symbol": "AAPL",
-        "target-price": 190,
+        "target-price": 190.0,
         "tresh": "Rises Above"
     },
     {
@@ -11,7 +11,7 @@
     },
     {
         "symbol": "PORTFOLIO",
-        "target-price": 1230.0,
+        "target-price": 1200.0,
         "tresh": "Falls Below"
     }
 ]

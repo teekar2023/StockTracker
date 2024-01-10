@@ -4,11 +4,13 @@
 # Quick Start
 1. Install dependencies:
    * Python 3
-     * Run these commands in terminal
-     * `pip install pandas`
-     * `pip install yfinance`
-     * `pip install sv-ttk`
-     * `pip install matplotlib`
+     * `pip3 install pandas`
+     * `pip3 install yfinance`
+     * `pip3 install sv-ttk`
+     * `pip3 install matplotlib`
+     * `pip3 install nltk`
+     * `pip3 install scikit-learn`
+     * Script will try to install these if one isn't found
 2. Download [PortfolioTracker.pyw](https://github.com/teekar2023/StockTracker/blob/master/PortfolioTracker.pyw) to any folder
 3.  Navigate to folder and run `python PortfolioTracker.pyw`
 4. Configure your portfolio with the buttons

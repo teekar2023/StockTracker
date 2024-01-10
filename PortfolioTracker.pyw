@@ -1,26 +1,36 @@
 import random
 import tkinter as tk
 import webbrowser
+import os
+import sys
 from tkinter import ttk, filedialog
 from tkinter.messagebox import askyesno, showinfo, showerror
 from tkinter.simpledialog import askstring
 
-import pandas as pd
-import yfinance as yf
+try:
+    import pandas as pd
+    import yfinance as yf
+    import sv_ttk
+    from matplotlib import pyplot as plt
+    import nltk
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.naive_bayes import MultinomialNB
+except Exception as e:
+    print(f"Error importing modules: {e}\n\nAttempting to install all dependencies...")
+    os.system("pip3 install pandas")
+    os.system("pip3 install yfinance")
+    os.system("pip3 install sv-ttk")
+    os.system("pip3 install matplotlib")
+    os.system("pip3 install nltk")
+    os.system("pip3 install scikit-learn")
+    os.execv(sys.executable, [sys.executable] + sys.argv)
 import time
-import os
-import sys
 import json
 from datetime import datetime, date, timedelta
 import subprocess
 import platform
-import sv_ttk
 import csv
 import pytz
-from matplotlib import pyplot as plt
-import nltk
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.naive_bayes import MultinomialNB
 
 
 class Stock:
@@ -158,12 +168,14 @@ class Assistant:
             ("what sectors am i invested in", "sector-allocation"),
             ("what is my top held sector", "sector-allocation"),
             ("sector allocation", "sector-allocation"),
+            ("sectors", "sector-allocation"),
             ("what kinda positions am i holding", "sector-allocation"),
             ("what kind of stocks do i have", "sector-allocation"),
             ("what type of companies am i investing in", "sector-allocation"),
             ("where are my stocks from", "country-allocation"),
             ("country allocation", "country-allocation"),
             ("what countries am i investing in", "country-allocation"),
+            ("countries", " country-allocation"),
             ("next dividends", "next-dividends"),
             ("dividend calendar", "next-dividends"),
             ("dividends today", "next-dividends"),
@@ -177,6 +189,8 @@ class Assistant:
             ("how long until market close", "close-time"),
             ("what time can i trade until", "close-time"),
             ("how long can i trade", "close-time"),
+            ("how long until the market closes", "close-time"),
+            ("how long until the market opens", "open-time"),
             ("market close", "close-time"),
             ("market open", "open-time"),
             ("how long until the day starts", "open-time"),
@@ -195,20 +209,9 @@ class Assistant:
             ("show me your programming", "source-code"),
             ("show me how you work", "source-code"),
             ("how do you work", "source-code"),
-            ("most held sectors", "top-sector"),
-            ("top sectors", "top-sector"),
-            ("whats my best sector", "top-sector"),
-            ("mostly invested sectors", "top-sector"),
-            ("sectors i have lot of", "top-sector"),
-            ("least held sectors", "low-sector"),
-            ("sectors should i invest in", "low-sector"),
-            ("least sectors", "low-sector"),
-            ("low sectors", "low-sector"),
-            ("sectors to invest in", "low-sector"),
-            ("sectors to expand", "low-sectors"),
-            ("sectors to buy", "low-sectors"),
-            ("balance portfolio", "low-sectors"),
-            ("least invested sectors", "low-sector"),
+            ("how were you made", "source-code"),
+            ("how were you created", "source-code"),
+            ("who is your creator", "source-code"),
             ("whats my dividend yield", "dividend-yield"),
             ("what do i make from dividends", "dividend-yield"),
             ("dividend yields", "dividend-yield"),
@@ -259,10 +262,7 @@ class Assistant:
         if tag == "thanks":
             response = "Happy to help"
         if tag == "day-change":
-            if portfolio.total_daily_abs_gain <= 0:
-                response = f"You are down today with a daily loss of ${portfolio.total_daily_abs_gain} or {portfolio.total_daily_rel_gain}%"
-            else:
-                response = f"You are up today with a daily gain of ${portfolio.total_daily_abs_gain} or {portfolio.total_daily_rel_gain}%"
+            show_eod_summary()
         if tag == "total-performance":
             if portfolio.total_abs_gain <= 0:
                 response = f"Currently, you have lost ${portfolio.total_abs_gain} or {portfolio.total_rel_gain}% in total"
@@ -307,16 +307,12 @@ class Assistant:
         if tag == "source-code":
             response = "GitHub Repository was opened in browser"
             webbrowser.open("https://github.com/teekar2023/StockTracker/")
-        if tag == "top-sector":
-            pass  # TODO
-        if tag == "low-sector":
-            pass  # TODO
         if tag == "dividend-yield":
             pass  # TODO
         if tag == "quarter-time":
             pass  # TODO
         if tag == "day-stock-rating":
-            pass  # TODO
+            show_eod_summary()
         return response
 
 
@@ -369,6 +365,9 @@ def update_main_window():
         loading_label.destroy()
         other_loading_label.destroy()
         loading_bar.destroy()
+        for child in root.winfo_children():
+            if isinstance(child, tk.Toplevel):
+                child.destroy()
         pass
     except Exception:
         pass
@@ -497,6 +496,8 @@ def update_main_window():
         alerts_file.close()
         pass
     print("Alert check complete")
+    if settings_json['eod-summary'] == 1:
+        eod_summary()
     return
 
 
@@ -632,6 +633,8 @@ def load_app():
         alerts_file.close()
         pass
     print("Alert check complete")
+    if settings_json['eod-summary'] == 1:
+        eod_summary()
     return
 
 
@@ -1090,6 +1093,11 @@ def app_settings():
     refresh_interval_label.pack(padx=5, pady=5)
     refresh_interval_entry = ttk.Entry(other_frame, width=5)
     refresh_interval_entry.pack(padx=5, pady=5)
+    eod_summary_label = ttk.Label(other_frame, text="End of Day Summary")
+    eod_summary_label.pack(padx=5, pady=5)
+    eod_summary_var = tk.IntVar()
+    eod_summary_checkbutton = ttk.Checkbutton(other_frame, text="Enable", variable=eod_summary_var, onvalue=1, offvalue=0)
+    eod_summary_checkbutton.pack(padx=5, pady=5)
     other_frame.grid(padx=5, pady=5, column=1, row=1)
     settings_json = json.load(open("Settings/settings.json", "r"))
     if settings_json["dark-mode"] == 1:
@@ -1119,9 +1127,10 @@ def app_settings():
     root.update()
     root.focus_set()
     root.wait_variable(settings_wait_var)
-    settings = {
+    new_settings = {
         "refresh-interval": int(refresh_interval_entry.get()),
-        "dark-mode": dark_mode_var.get()
+        "dark-mode": dark_mode_var.get(),
+        "eod-summary": eod_summary_var.get()
     }
     settings_window_title.destroy()
     customization_frame.destroy()
@@ -1129,11 +1138,11 @@ def app_settings():
     alerts_frame.destroy()
     back_button.destroy()
     save_button.destroy()
-    settings_object = json.dumps(settings, indent=4)
+    new_settings_object = json.dumps(new_settings, indent=4)
     settings_file = open("Settings/settings.json", "w+")
     settings_file.truncate(0)
     with settings_file as outfile:
-        outfile.write(settings_object)
+        outfile.write(new_settings_object)
         settings_file.close()
         pass
     restart_app(None)
@@ -1484,16 +1493,19 @@ def save_portfolio_summary():
 
 def portfolio_etf_allocation():
     list_of_etfs = {}
+    list_of_holdings = {}
     for stock in portfolio.securities:
         tinfo = yf.Ticker(stock.symbol).info
-        # TODO
+        # TODO filter etfs and get holdings
     print(list_of_etfs)
+    print(list_of_holdings)
     # TODO
     return
 
 
 def portfolio_sector_allocation():
     list_of_sectors = {}
+    stocks_in_sector = {}
     for stock in portfolio.securities:
         tinfo = yf.Ticker(stock.symbol).info
         try:
@@ -1504,22 +1516,69 @@ def portfolio_sector_allocation():
             pass
         if sector not in list_of_sectors.keys():
             list_of_sectors[f'{sector}'] = 1
+            stocks_in_sector[f'{sector}'] = [stock.symbol]
         else:
             for key, value in list_of_sectors.items():
                 if key == sector:
                     list_of_sectors[f'{sector}'] = value + 1
-    category_labels = list(list_of_sectors.keys())
-    category_values = list(list_of_sectors.values())
+                    stocks_in_sector[f'{sector}'].append(stock.symbol)
+    sector_window = tk.Toplevel(root)
+    sector_window.geometry("700x515")
+    sector_window.title("Portfolio Sectors")
+    sector_title = ttk.Label(sector_window, text="Portfolio Sectors", font=("Helvetica", 30))
+    sector_title.grid(padx=5, pady=5, column=0, row=0)
+    sector_list = ttk.Treeview(sector_window, columns=["Sector/Stock", "Shares", "Value", "% of Portfolio"], height=20)
+    sector_list.heading("#0", text="")
+    sector_list.heading("Sector/Stock", text="Sector/Stock")
+    sector_list.heading("Shares", text="Shares")
+    sector_list.heading("Value", text="Value")
+    sector_list.heading("% of Portfolio", text="% of Portfolio")
+    sector_list.column("#0", width=0)
+    sector_list.column("#1", width=175)
+    sector_list.column("#2", width=75)
+    sector_list.column("#3", width=75)
+    sector_list.column("#4", width=125)
+    for key, value in list_of_sectors.items():
+        values = []
+        for security in portfolio.securities:
+            if security.symbol in stocks_in_sector[key]:
+                stock = portfolio.get_security_by_symbol(security.symbol)
+                values.append(stock.current_value)
+        sector_list.insert("", "end", text="", values=(key.replace(" ", ": "), "", round(sum(values), 2), round((value / len(portfolio.securities)) * 100, 2)), iid=key)
+    sector_list.grid(padx=5, pady=5, column=0, row=1)
+    for key, values in stocks_in_sector.items():
+        for value in values:
+            stock = portfolio.get_security_by_symbol(value)
+            sector_list.insert(key, "end", text="", values=("     " + value, stock.shares, round(stock.current_value, 2), round((stock.current_value / portfolio.total_value) * 100, 2)))
+    tool_frame = ttk.Frame(sector_window)
+    pie_chart_button = ttk.Button(tool_frame, text="Allocation Pie Chart", command=lambda: sector_allocation_pie_chart(list_of_sectors))
+    pie_chart_button.pack(padx=5, pady=5)
+    tool_frame.grid(padx=5, pady=5, column=1, row=1)
+    return
+
+
+def sector_allocation_pie_chart(sector_list):
+    category_labels = list(sector_list.keys())
+    category_values = list(sector_list.values())
     fig, ax = plt.subplots()
-    plt.pie(category_values, labels=category_labels, autopct="%1.1f%%")
-    plt.title("Sectors")
+    plt.pie(category_values, autopct="%1.1f%%", radius=1.2,
+            wedgeprops=dict(width=0.6, edgecolor="#eee", linewidth=0.5), shadow=True)
+    plt.title("Portfolio Sector Distribution", fontsize=18, weight="bold")
+    plt.axis("equal")
+    plt.grid(False)
+    plt.gca().spines["top"].set_visible(False)
+    plt.gca().spines["right"].set_visible(False)
+    plt.gca().spines["bottom"].set_visible(False)
+    plt.gca().spines["left"].set_visible(False)
+    plt.legend(loc="center left", bbox_to_anchor=(1, 0.5), labels=category_labels, prop={"size": 10})
+    plt.tight_layout()
     plt.show()
-    plt.close()
     return
 
 
 def portfolio_country_allocation():
     list_of_countries = {}
+    stocks_in_country = {}
     for stock in portfolio.securities:
         tinfo = yf.Ticker(stock.symbol).info
         try:
@@ -1529,17 +1588,182 @@ def portfolio_country_allocation():
             continue
         if country not in list_of_countries.keys():
             list_of_countries[f'{country}'] = 1
+            stocks_in_country[f'{country}'] = [stock.symbol]
         else:
             for key, value in list_of_countries.items():
                 if key == country:
                     list_of_countries[f'{country}'] = value + 1
-    cat_labels = list(list_of_countries.keys())
-    cat_values = list(list_of_countries.values())
+                    stocks_in_country[f'{country}'].append(stock.symbol)
+    country_window = tk.Toplevel(root)
+    country_window.geometry("700x515")
+    country_window.title("Portfolio Countries")
+    country_title = ttk.Label(country_window, text="Portfolio Countries", font=("Helvetica", 30))
+    country_title.grid(padx=5, pady=5, column=0, row=0)
+    country_list = ttk.Treeview(country_window, columns=["Country/Stock", "Shares", "Value", "% of Portfolio"], height=20)
+    country_list.heading("#0", text="")
+    country_list.heading("Country/Stock", text="Country/Stock")
+    country_list.heading("Shares", text="Shares")
+    country_list.heading("Value", text="Value")
+    country_list.heading("% of Portfolio", text="% of Portfolio")
+    country_list.column("#0", width=0)
+    country_list.column("#1", width=175)
+    country_list.column("#2", width=75)
+    country_list.column("#3", width=75)
+    country_list.column("#4", width=125)
+    for key, value in list_of_countries.items():
+        values = []
+        for security in portfolio.securities:
+            if security.symbol in stocks_in_country[key]:
+                stock = portfolio.get_security_by_symbol(security.symbol)
+                values.append(stock.current_value)
+        country_list.insert("", "end", text="", values=(
+        key.replace(" ", " "), "", round(sum(values), 2), round((value / len(portfolio.securities)) * 100, 2)),
+                            iid=key)
+    country_list.grid(padx=5, pady=5, column=0, row=1)
+    for key, values in stocks_in_country.items():
+        for value in values:
+            stock = portfolio.get_security_by_symbol(value)
+            country_list.insert(key, "end", text="", values=(
+            "     " + value, stock.shares, round(stock.current_value, 2),
+            round((stock.current_value / portfolio.total_value) * 100, 2)))
+    tool_frame = ttk.Frame(country_window)
+    pie_chart_button = ttk.Button(tool_frame, text="Allocation Pie Chart",
+                                  command=lambda: country_allocation_pie_chart(list_of_countries))
+    pie_chart_button.pack(padx=5, pady=5)
+    tool_frame.grid(padx=5, pady=5, column=1, row=1)
+    return
+
+
+def country_allocation_pie_chart(country_list):
+    cat_labels = list(country_list.keys())
+    cat_values = list(country_list.values())
     fig, ax = plt.subplots()
-    plt.pie(cat_values, labels=cat_labels, autopct="%1.1f%%")
-    plt.title("Countries")
+    plt.pie(cat_values, autopct="%1.1f%%", radius=1.2,
+            wedgeprops=dict(width=0.6, edgecolor="#eee", linewidth=0.5), shadow=True)
+    plt.title("Portfolio Country Distribution", fontsize=18, weight="bold")
+    plt.axis("equal")
+    plt.grid(False)
+    plt.gca().spines["top"].set_visible(False)
+    plt.gca().spines["right"].set_visible(False)
+    plt.gca().spines["bottom"].set_visible(False)
+    plt.gca().spines["left"].set_visible(False)
+    plt.legend(loc="center left", bbox_to_anchor=(1, 0.5), labels=cat_labels, prop={"size": 10})
+    plt.tight_layout()
     plt.show()
-    plt.close()
+    return
+
+
+def eod_summary():
+    today = date.today().strftime("%Y-%m-%d")
+    if os.path.exists("last-summary-date.txt"):
+        with open("last-summary-date.txt", "r") as file:
+            stored_date = file.read().strip()
+        if stored_date != today:
+            now = datetime.now(pytz.timezone('US/Eastern'))
+            close_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
+            if close_time < now:
+                print("Showing eod summary")
+                with open("last-summary-date.txt", "w") as file:
+                    file.write(today)
+                show_eod_summary()
+                return
+        return
+    else:
+        print("Creating eod summary date file")
+        create_date_file = open("last-summary-date.txt", "w+")
+        create_date_file.write(today)
+        create_date_file.close()
+        eod_summary()
+        return
+
+
+def show_eod_summary():
+    global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label
+    root.after_cancel(refresh_interval)
+    table_frame.destroy()
+    stats_frame.destroy()
+    actions_frame.destroy()
+    last_refreshed_text.destroy()
+    root.geometry("470x415")
+    today = date.today().strftime("%Y-%m-%d")
+    summary_window_title = ttk.Label(root, text="Daily Portfolio Summary", font=("Helvetica", 30))
+    summary_window_title.grid(row=0, column=1, padx=5, pady=5)
+    holdings_summary_text = ttk.Label(root, text=f"Current Value: ${portfolio.total_value}\n"
+                                                 f"Daily Change: ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
+                                      font=("Helvetica", 15))
+    holdings_summary_text.grid(row=1, column=1, padx=5, pady=5)
+    history_frame = ttk.Frame(root)
+    history_frame.grid(row=0, column=1, padx=5, pady=5)
+    # TODO add history graph
+    insights_frame = ttk.LabelFrame(root, text="Insights")
+    presorted_list = []
+    for security in portfolio.securities:
+        presorted_list.append(security.daily_abs_gain)
+    gain_sorted_list = sorted(presorted_list, reverse=True)
+    loss_sorted_list = sorted(presorted_list)
+    gain_sorted_stocks = []
+    loss_sorted_stocks = []
+    for i in range(5):
+        gain_sorted_stocks.append(portfolio.securities[presorted_list.index(gain_sorted_list[i])])
+        loss_sorted_stocks.append(portfolio.securities[presorted_list.index(loss_sorted_list[i])])
+    top_gainers_text = "-----Top Gainers-----\n"
+    top_losers_text = "-----Top Losers-----\n"
+    for stock in gain_sorted_stocks:
+        top_gainers_text += f"{stock.symbol} - ${round(stock.daily_abs_gain, 2)} | {round(stock.daily_rel_gain, 2)}%\n"
+    for stock in loss_sorted_stocks:
+        top_losers_text += f"{stock.symbol} - ${round(stock.daily_abs_gain, 2)} | {round(stock.daily_rel_gain, 2)}%\n"
+    top_gainers_list = ttk.Label(insights_frame, text=top_gainers_text)
+    absolute_sort_label = ttk.Label(insights_frame, text="By Absolute Change:")
+    absolute_sort_label.grid(column=0, row=0)
+    top_gainers_list.grid(padx=5, pady=5, column=1, row=0)
+    top_losers_list = ttk.Label(insights_frame, text=top_losers_text)
+    top_losers_list.grid(padx=5, pady=5, column=2, row=0)
+    presorted_rel_list = []
+    for pos in portfolio.securities:
+        presorted_rel_list.append(pos.daily_rel_gain)
+    gain_sorted_rel_list = sorted(presorted_rel_list, reverse=True)
+    loss_sorted_rel_list = sorted(presorted_rel_list)
+    gain_sorted_rel_stocks = []
+    loss_sorted_rel_stocks = []
+    for i in range(5):
+        gain_sorted_rel_stocks.append(
+            portfolio.securities[presorted_rel_list.index(gain_sorted_rel_list[i])])
+        loss_sorted_rel_stocks.append(
+            portfolio.securities[presorted_rel_list.index(loss_sorted_rel_list[i])])
+    top_gainers_rel_text = "-----Top Gainers-----\n"
+    top_losers_rel_text = "-----Top Losers-----\n"
+    for stock in gain_sorted_rel_stocks:
+        top_gainers_rel_text += f"{stock.symbol} - ${round(stock.daily_abs_gain, 2)} | {round(stock.daily_rel_gain, 2)}%\n"
+    for stock in loss_sorted_rel_stocks:
+        top_losers_rel_text += f"{stock.symbol} - ${round(stock.daily_abs_gain, 2)} | {round(stock.daily_rel_gain, 2)}%\n"
+    relative_sort_label = ttk.Label(insights_frame, text="By Relative Change:")
+    relative_sort_label.grid(row=1, column=0)
+    top_gainers_rel_list = ttk.Label(insights_frame, text=top_gainers_rel_text)
+    top_gainers_rel_list.grid(padx=5, pady=5, column=1, row=1)
+    top_losers_rel_list = ttk.Label(insights_frame, text=top_losers_rel_text)
+    top_losers_rel_list.grid(padx=5, pady=5, column=2, row=1)
+    insights_frame.grid(column=1, row=2, padx=5, pady=5)
+    summary_wait_var = tk.IntVar(root, 0)
+    back_button = ttk.Button(root, text="Back", command=lambda: summary_wait_var.set(1))
+    back_button.grid(row=3, column=1, padx=5, pady=5)
+    root.deiconify()
+    root.update()
+    root.focus_set()
+    root.wait_variable(summary_wait_var)
+    summary_window_title.destroy()
+    holdings_summary_text.destroy()
+    history_frame.destroy()
+    back_button.destroy()
+    insights_frame.destroy()
+    loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 30))
+    loading_label.pack(pady=150)
+    other_loading_label = ttk.Label(root, text="This might take a couple seconds...",
+                                    font=("Helvetica", 15))
+    other_loading_label.pack()
+    root.deiconify()
+    root.update()
+    root.focus_set()
+    update_main_window()
     return
 
 
@@ -1550,6 +1774,10 @@ def restart_app(event):
 
 def quit_app(event):
     print("Quitting")
+    try:
+        root.after_cancel(refresh_interval)
+    except Exception:
+        pass
     root.destroy()
     sys.exit(0)
 
@@ -1568,7 +1796,8 @@ if not os.path.exists("Settings/"):
 if not os.path.exists("Settings/settings.json"):
     settings = {
         "refresh-interval": 7,
-        "dark-mode": 1
+        "dark-mode": 1,
+        "eod-summary": 1
     }
     settings_object = json.dumps(settings, indent=4)
     with open("Settings/settings.json", "w+") as sf:
