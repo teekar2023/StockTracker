@@ -3,9 +3,12 @@ import tkinter as tk
 import webbrowser
 import os
 import sys
+import re
 from tkinter import ttk, filedialog
 from tkinter.messagebox import askyesno, showinfo, showerror
 from tkinter.simpledialog import askstring
+
+from dateutil.relativedelta import relativedelta
 
 try:
     import pandas as pd
@@ -156,6 +159,9 @@ class Assistant:
             ("how are my stocks doing", "total-performance"),
             ("is my portfolio good", "total-performance"),
             ("how much money have i made", "total-performance"),
+            ("how is this doing", "total-performance"),
+            ("how is this holding", "total-performance"),
+            ("tell me about this", "total-performance"),
             ("what are my best positions", "best-stocks"),
             ("top gainers", "best-stocks"),
             ("best stocks", "best-stocks"),
@@ -218,6 +224,8 @@ class Assistant:
             ("dividend returns", "dividend-yield"),
             ("time left in quarter", "quarter-time"),
             ("when does quarter end", "quarter-time"),
+            ("quarter time", "quarter-time"),
+            ("fiscal quarter", "quarter-time"),
             ("how long is the quarter", "quarter-time"),
             ("best stocks today", "day-stock-rating"),
             ("worst stocks today", "day-stock-rating"),
@@ -264,10 +272,26 @@ class Assistant:
         if tag == "day-change":
             show_eod_summary()
         if tag == "total-performance":
-            if portfolio.total_abs_gain <= 0:
-                response = f"Currently, you have lost ${portfolio.total_abs_gain} or {portfolio.total_rel_gain}% in total"
+            symbol_pattern = r"\b[A-Z]{2,5}\b"
+            match = re.search(symbol_pattern, prompt)
+            if match:
+                symbol = match.group()
+                stock: Stock = portfolio.get_security_by_symbol(symbol.upper())
+                if stock == -1:
+                    if portfolio.total_abs_gain <= 0:
+                        response = f"Currently, you have lost ${portfolio.total_abs_gain} or {portfolio.total_rel_gain}% in total"
+                    else:
+                        response = f"You have made a total return of ${portfolio.total_abs_gain} or {portfolio.total_rel_gain}% on your investments"
+                else:
+                    if stock.daily_abs_gain <= 0:
+                        response = f"Your {stock.symbol} position is down today at ${round(stock.daily_abs_gain, 2)} ({round(stock.daily_rel_gain, 2)}%) for a total change of ${round(stock.absolute_gain, 2)} ({round(stock.relative_gain, 2)}%)"
+                    else:
+                        response = f"Your {stock.symbol} position is up today at ${round(stock.daily_abs_gain, 2)} ({round(stock.daily_rel_gain, 2)}%) for a total change of ${round(stock.absolute_gain, 2)} ({round(stock.relative_gain, 2)}%)"
             else:
-                response = f"You have made a total return of ${portfolio.total_abs_gain} or {portfolio.total_rel_gain}% on your investments"
+                if portfolio.total_abs_gain <= 0:
+                    response = f"Currently, you have lost ${portfolio.total_abs_gain} or {portfolio.total_rel_gain}% in total"
+                else:
+                    response = f"You have made a total return of ${portfolio.total_abs_gain} or {portfolio.total_rel_gain}% on your investments"
         if tag == "best-stocks":
             pass  # TODO
         if tag == "worst-stocks":
@@ -287,20 +311,22 @@ class Assistant:
             close_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
             if close_time < now:
                 response = "Market is currently closed"
-                return response
-            time_delta = close_time - now
-            response = f"Time until market close: {str(time_delta).split('.')[0]}"
+            else:
+                time_delta = close_time - now
+                hours, minutes, seconds = time_delta.seconds // 3600, time_delta.seconds // 60 % 60, time_delta.seconds % 60
+                response = f"Market closes in {hours} hours, {minutes} minutes, {seconds} seconds"
         if tag == "open-time":
             now = datetime.now(pytz.timezone('US/Eastern'))
             open_time = now.replace(hour=9, minute=30, second=0, microsecond=0)
             close_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
-            if open_time < now > close_time:
-                open_time += timedelta(days=1)
-            elif open_time < now:
+            if open_time < now < close_time:
                 response = "Market is currently open"
-                return response
-            time_delta = open_time - now
-            response = f"Time until market open: {str(time_delta).split('.')[0]}"
+            else:
+                if open_time < now:
+                    open_time += timedelta(days=1)
+                time_delta = open_time - now
+                hours, minutes, seconds = time_delta.seconds // 3600, time_delta.seconds // 60 % 60, time_delta.seconds % 60
+                response = f"Time until market open: {hours} hours, {minutes} minutes, {seconds} seconds"
         if tag == "help":
             response = ("I am your portfolio tracker assistant. I can help you quickly get what you need to know. Try "
                         "asking me something about your portfolio data")
@@ -310,10 +336,38 @@ class Assistant:
         if tag == "dividend-yield":
             pass  # TODO
         if tag == "quarter-time":
-            pass  # TODO
+            today = datetime.date(datetime.now())
+            quarter_end = get_current_fiscal_quarter_end(10)
+            time_remaining = quarter_end - today
+
+            months = time_remaining.days // 30
+            days = time_remaining.days % 30
+            hours, remainder = divmod(time_remaining.seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+
+            output_parts = []
+            if months > 0:
+                output_parts.append(f"{months} months")
+            if days > 0:
+                output_parts.append(f"{days} days")
+            if hours > 0:
+                output_parts.append(f"{hours} hours")
+            if minutes > 0:
+                output_parts.append(f"{minutes} minutes")
+            if seconds > 0:
+                output_parts.append(f"{seconds} seconds")
+            return f"The current fiscal quarter ends in {', '.join(output_parts)}."
         if tag == "day-stock-rating":
             show_eod_summary()
         return response
+
+
+def get_current_fiscal_quarter_end(fiscal_start_month=10):
+    today = pd.Timestamp.now()
+    fiscal_year_end = pd.to_datetime(f"{datetime.now().year + 1}-{fiscal_start_month}-30")
+    current_quarter = pd.Period(today, freq='Q-NOV')
+    current_quarter_end = current_quarter.end_time + relativedelta(days=-1)
+    return current_quarter_end.date()
 
 
 def launch_assistant(event):
@@ -323,7 +377,7 @@ def launch_assistant(event):
     assistant_window.title("Portfolio Assistant")
     chat_frame = ttk.Frame(assistant_window)
     chat_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-    chat_text = tk.Text(chat_frame, wrap=tk.WORD, width=40, height=15, font=("Helvetica", 16))
+    chat_text = tk.Text(chat_frame, wrap=tk.WORD, width=40, height=15, font=("Helvetica", 14))
     chat_text.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=10)
     input_frame = ttk.Frame(assistant_window)
     input_frame.pack(side=tk.BOTTOM, fill=tk.X)
@@ -331,16 +385,19 @@ def launch_assistant(event):
     input_box = ttk.Entry(input_frame, width=40, font=("Helvetica", 12))
     input_box.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=10, pady=5)
 
-    send_button = ttk.Button(input_frame, text="Send", command=lambda: res(input_box.get(), chat_text, input_box, assistant_window))
+    send_button = ttk.Button(input_frame, text="Send",
+                             command=lambda: res(input_box.get(), chat_text, input_box, assistant_window))
     send_button.pack(side=tk.RIGHT, padx=10, pady=5)
 
     list_of_prompts = ["How can I help?", "What do you need?", "Got a question about your portfolio?",
                        "What can I do for you?", "Do you have a question for me?", "Anything I can help with?"]
     chat_text.insert(tk.END, random.choice(list_of_prompts) + "\n\n")
+    chat_text.config(state="disabled")
     assistant_window.protocol("WM_DELETE_WINDOW", update_main_window)
 
 
 def res(q, box, input_box, window):
+    box.config(state="normal")
     if q == "" or q.isspace():
         return
     input_box.delete(0, "end")
@@ -352,6 +409,7 @@ def res(q, box, input_box, window):
             window.destroy()
             update_main_window()
     box.yview(tk.END)
+    box.config(state="disabled")
 
 
 def update_main_window():
@@ -611,12 +669,12 @@ def load_app():
                 if alert["tresh"] == "Rises Above":
                     if stock_data.current_price >= alert["target-price"]:
                         showinfo(title="Custom Alert",
-                                message=f"{alert["symbol"]} rose above {alert["target-price"]}. This alert will be deleted")
+                                 message=f"{alert["symbol"]} rose above {alert["target-price"]}. This alert will be deleted")
                         triggered_alerts.append(alert)
                 else:
                     if stock_data.current_price <= alert["target-price"]:
                         showinfo(title="Custom Alert",
-                                message=f"{alert["symbol"]} fell below {alert["target-price"]}. This alert will be deleted")
+                                 message=f"{alert["symbol"]} fell below {alert["target-price"]}. This alert will be deleted")
                         triggered_alerts.append(alert)
                 pass
             except Exception:
@@ -1096,7 +1154,8 @@ def app_settings():
     eod_summary_label = ttk.Label(other_frame, text="End of Day Summary")
     eod_summary_label.pack(padx=5, pady=5)
     eod_summary_var = tk.IntVar()
-    eod_summary_checkbutton = ttk.Checkbutton(other_frame, text="Enable", variable=eod_summary_var, onvalue=1, offvalue=0)
+    eod_summary_checkbutton = ttk.Checkbutton(other_frame, text="Enable", variable=eod_summary_var, onvalue=1,
+                                              offvalue=0)
     eod_summary_checkbutton.pack(padx=5, pady=5)
     other_frame.grid(padx=5, pady=5, column=1, row=1)
     settings_json = json.load(open("Settings/settings.json", "r"))
@@ -1544,14 +1603,19 @@ def portfolio_sector_allocation():
             if security.symbol in stocks_in_sector[key]:
                 stock = portfolio.get_security_by_symbol(security.symbol)
                 values.append(stock.current_value)
-        sector_list.insert("", "end", text="", values=(key.replace(" ", ": "), "", round(sum(values), 2), round((value / len(portfolio.securities)) * 100, 2)), iid=key)
+        sector_list.insert("", "end", text="", values=(
+        key.replace(" ", ": "), "", round(sum(values), 2), round((value / len(portfolio.securities)) * 100, 2)),
+                           iid=key)
     sector_list.grid(padx=5, pady=5, column=0, row=1)
     for key, values in stocks_in_sector.items():
         for value in values:
             stock = portfolio.get_security_by_symbol(value)
-            sector_list.insert(key, "end", text="", values=("     " + value, stock.shares, round(stock.current_value, 2), round((stock.current_value / portfolio.total_value) * 100, 2)))
+            sector_list.insert(key, "end", text="", values=(
+            "     " + value, stock.shares, round(stock.current_value, 2),
+            round((stock.current_value / portfolio.total_value) * 100, 2)))
     tool_frame = ttk.Frame(sector_window)
-    pie_chart_button = ttk.Button(tool_frame, text="Allocation Pie Chart", command=lambda: sector_allocation_pie_chart(list_of_sectors))
+    pie_chart_button = ttk.Button(tool_frame, text="Allocation Pie Chart",
+                                  command=lambda: sector_allocation_pie_chart(list_of_sectors))
     pie_chart_button.pack(padx=5, pady=5)
     tool_frame.grid(padx=5, pady=5, column=1, row=1)
     return
@@ -1599,7 +1663,8 @@ def portfolio_country_allocation():
     country_window.title("Portfolio Countries")
     country_title = ttk.Label(country_window, text="Portfolio Countries", font=("Helvetica", 30))
     country_title.grid(padx=5, pady=5, column=0, row=0)
-    country_list = ttk.Treeview(country_window, columns=["Country/Stock", "Shares", "Value", "% of Portfolio"], height=20)
+    country_list = ttk.Treeview(country_window, columns=["Country/Stock", "Shares", "Value", "% of Portfolio"],
+                                height=20)
     country_list.heading("#0", text="")
     country_list.heading("Country/Stock", text="Country/Stock")
     country_list.heading("Shares", text="Shares")
@@ -1617,15 +1682,15 @@ def portfolio_country_allocation():
                 stock = portfolio.get_security_by_symbol(security.symbol)
                 values.append(stock.current_value)
         country_list.insert("", "end", text="", values=(
-        key.replace(" ", " "), "", round(sum(values), 2), round((value / len(portfolio.securities)) * 100, 2)),
+            key.replace(" ", " "), "", round(sum(values), 2), round((value / len(portfolio.securities)) * 100, 2)),
                             iid=key)
     country_list.grid(padx=5, pady=5, column=0, row=1)
     for key, values in stocks_in_country.items():
         for value in values:
             stock = portfolio.get_security_by_symbol(value)
             country_list.insert(key, "end", text="", values=(
-            "     " + value, stock.shares, round(stock.current_value, 2),
-            round((stock.current_value / portfolio.total_value) * 100, 2)))
+                "     " + value, stock.shares, round(stock.current_value, 2),
+                round((stock.current_value / portfolio.total_value) * 100, 2)))
     tool_frame = ttk.Frame(country_window)
     pie_chart_button = ttk.Button(tool_frame, text="Allocation Pie Chart",
                                   command=lambda: country_allocation_pie_chart(list_of_countries))
@@ -1684,7 +1749,7 @@ def show_eod_summary():
     stats_frame.destroy()
     actions_frame.destroy()
     last_refreshed_text.destroy()
-    root.geometry("470x415")
+    root.geometry("800x500")
     today = date.today().strftime("%Y-%m-%d")
     summary_window_title = ttk.Label(root, text="Daily Portfolio Summary", font=("Helvetica", 30))
     summary_window_title.grid(row=0, column=1, padx=5, pady=5)
@@ -1695,6 +1760,13 @@ def show_eod_summary():
     history_frame = ttk.Frame(root)
     history_frame.grid(row=0, column=1, padx=5, pady=5)
     # TODO add history graph
+    holdings_frame = ttk.LabelFrame(root, text="Holdings")
+    holdings_string = ""
+    for stock in portfolio.securities:
+        holdings_string += f"{stock.symbol} | ${round(stock.daily_abs_gain, 2)} ({round(stock.daily_rel_gain, 2)}%)\n"
+    holdings_text = ttk.Label(holdings_frame, text=holdings_string)
+    holdings_text.pack(padx=5, pady=5)
+    holdings_frame.grid(column=0, row=2, padx=5, pady=5)
     insights_frame = ttk.LabelFrame(root, text="Insights")
     presorted_list = []
     for security in portfolio.securities:
@@ -1753,6 +1825,7 @@ def show_eod_summary():
     summary_window_title.destroy()
     holdings_summary_text.destroy()
     history_frame.destroy()
+    holdings_frame.destroy()
     back_button.destroy()
     insights_frame.destroy()
     loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 30))
