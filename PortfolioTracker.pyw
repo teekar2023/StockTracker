@@ -414,7 +414,7 @@ def res(q, box, input_box, window):
 
 def update_main_window():
     global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label, loading_bar, current_task, loading_tasks
-    root.geometry("1675x600")
+    root.geometry("1625x600")
     try:
         table_frame.destroy()
         stats_frame.destroy()
@@ -435,7 +435,7 @@ def update_main_window():
     refresh_interval = root.after(settings_json["refresh-interval"] * 1000, update_main_window)
     table_frame = ttk.LabelFrame(root, text="Holdings")
     table = ttk.Treeview(table_frame, columns=(
-        "Symbol", "Name", "Price", "Shares", "Value", "Initial", "Cost/Share", "Total $", "Total %",
+        "Symbol", "Name", "Price", "Shares", "Value", "Cost/Share", "Total $", "Total %",
         "Day $", "Day %"), height=len(portfolio.securities))
     table.config(height=len(portfolio.securities))
     table.bind('<<TreeviewSelect>>', on_stock_selected)
@@ -444,7 +444,6 @@ def update_main_window():
     table.heading("Price", text="Price")
     table.heading("Shares", text="Shares")
     table.heading("Value", text="Value")
-    table.heading("Initial", text="Initial")
     table.heading("Cost/Share", text="Cost/Share")
     table.heading("Total $", text="Total $")
     table.heading("Total %", text="Total %")
@@ -452,7 +451,7 @@ def update_main_window():
     table.heading("Day %", text="Day %")
     for stock in portfolio.securities:
         table.insert("", tk.END, values=[stock.symbol, stock.name, round(stock.current_price, 2), stock.shares,
-                                         round(stock.current_value, 2), round(stock.initial_value, 2), stock.avg_price,
+                                         round(stock.current_value, 2), stock.avg_price,
                                          round(stock.absolute_gain, 2), round(stock.relative_gain, 2),
                                          round(stock.daily_abs_gain, 2), round(stock.daily_rel_gain, 2)])
     table.column("#0", width=0)
@@ -466,7 +465,6 @@ def update_main_window():
     table.column("#8", width=115)
     table.column("#9", width=115)
     table.column("#10", width=115)
-    table.column("#11", width=115)
     stats_frame = ttk.Frame(root)
     total_value_label = ttk.Label(stats_frame, text=f"Value | ${portfolio.total_value}", font=("Helvetica", 20))
     daily_gain_label = ttk.Label(stats_frame,
@@ -482,27 +480,27 @@ def update_main_window():
     last_refreshed_text = ttk.Label(root, text=f"↻ {refreshed_time}", font=("Helvetica", 15))
     log_transaction_label = ttk.Label(actions_frame, text="Portfolio", font=("Helvetica", 18))
     log_transaction_label.grid(column=0, row=1, columnspan=3, padx=5, pady=5)
-    log_buy_button = ttk.Button(actions_frame, text="+ Buy", command=log_buy)
+    log_buy_button = ttk.Button(actions_frame, text="➕ Buy", command=log_buy)
     log_buy_button.grid(column=0, row=2, padx=5, pady=5)
-    log_sell_button = ttk.Button(actions_frame, text="- Sell", command=log_sell)
+    log_sell_button = ttk.Button(actions_frame, text="➖ Sell", command=log_sell)
     log_sell_button.grid(column=1, row=2, padx=5, pady=5)
-    edit_file_button = ttk.Button(actions_frame, text="✎ Edit", command=edit_holdings_file)
+    edit_file_button = ttk.Button(actions_frame, text="✏️ Edit", command=edit_holdings_file)
     edit_file_button.grid(column=2, row=2, padx=5, pady=5)
     analysis_tools_label = ttk.Label(actions_frame, text="Tools", font=("Helvetica", 18))
     analysis_tools_label.grid(row=3, column=0, columnspan=3, padx=5, pady=5)
-    dividend_tracker_button = ttk.Button(actions_frame, text="Dividends", command=dividend_tracker)
-    dividend_tracker_button.grid(column=2, row=4, padx=5, pady=5)
-    benchmark_tool_button = ttk.Button(actions_frame, text="Benchmark", command=benchmark_portfolio_performance)
-    benchmark_tool_button.grid(column=1, row=4, padx=5, pady=5)
-    summary_button = ttk.Button(actions_frame, text="Summary", command=portfolio_summary)
-    summary_button.grid(column=0, row=4, padx=5, pady=5)
-    search_button = ttk.Button(actions_frame, text="Search", command=search_stock)
-    search_button.grid(padx=5, pady=5, column=0, row=5)
-    settings_button = ttk.Button(actions_frame, text="Settings", command=app_settings)
-    settings_button.grid(column=1, row=5, padx=5, pady=5)
-    assistant_button = ttk.Button(actions_frame, text="Assistant", command=lambda: launch_assistant(None))
-    assistant_button.grid(column=2, row=5, padx=5, pady=5)
-    quit_button = ttk.Button(actions_frame, text="Quit", command=lambda: quit_app(None))
+    summary_button = ttk.Button(actions_frame, text="📊 Summary", command=portfolio_summary)
+    summary_button.grid(column=1, row=4, padx=5, pady=5)
+    search_button = ttk.Button(actions_frame, text="🔎 Search", command=search_stock)
+    search_button.grid(column=0, row=5, padx=5, pady=5)
+    assistant_button = ttk.Button(actions_frame, text="🤖 Assistant", command=lambda: launch_assistant(None))
+    assistant_button.grid(column=0, row=4, padx=5, pady=5)
+    dividend_tracker_button = ttk.Button(actions_frame, text="💲 Dividends", command=dividend_tracker)
+    dividend_tracker_button.grid(column=1, row=5, padx=5, pady=5)
+    benchmark_tool_button = ttk.Button(actions_frame, text="📈 Benchmark", command=benchmark_portfolio_performance)
+    benchmark_tool_button.grid(column=2, row=4, padx=5, pady=5)
+    settings_button = ttk.Button(actions_frame, text="⚙️ Settings", command=app_settings)
+    settings_button.grid(column=2, row=5, padx=5, pady=5)
+    quit_button = ttk.Button(actions_frame, text="❌ Quit", command=lambda: quit_app(None))
     quit_button.grid(column=1, row=6, padx=5, pady=5)
     stats_frame.grid(padx=10, pady=10, column=0, row=0)
     table.pack(padx=5, pady=5)
@@ -583,7 +581,6 @@ def load_app():
     table.heading("Price", text="Price")
     table.heading("Shares", text="Shares")
     table.heading("Value", text="Value")
-    table.heading("Initial", text="Initial")
     table.heading("Cost/Share", text="Cost/Share")
     table.heading("Total $", text="Total $")
     table.heading("Total %", text="Total %")
@@ -591,7 +588,7 @@ def load_app():
     table.heading("Day %", text="Day %")
     for stock in portfolio.securities:
         table.insert("", tk.END, values=[stock.symbol, stock.name, round(stock.current_price, 2), stock.shares,
-                                         round(stock.current_value, 2), round(stock.initial_value, 2), stock.avg_price,
+                                         round(stock.current_value, 2), stock.avg_price,
                                          round(stock.absolute_gain, 2), round(stock.relative_gain, 2),
                                          round(stock.daily_abs_gain, 2), round(stock.daily_rel_gain, 2)])
     table.column("#0", width=0)
@@ -605,7 +602,6 @@ def load_app():
     table.column("#8", width=115)
     table.column("#9", width=115)
     table.column("#10", width=115)
-    table.column("#11", width=115)
     portfolio.calculate_total_gain()
     total_value_label = ttk.Label(stats_frame, text=f"Value | ${portfolio.total_value}", font=("Helvetica", 20))
     daily_gain_label = ttk.Label(stats_frame,
@@ -618,27 +614,27 @@ def load_app():
     total_gain_label.grid(column=0, row=2, padx=5, pady=5)
     log_transaction_label = ttk.Label(actions_frame, text="Portfolio", font=("Helvetica", 18))
     log_transaction_label.grid(column=0, row=1, columnspan=3, padx=5, pady=5)
-    log_buy_button = ttk.Button(actions_frame, text="+ Buy", command=log_buy)
+    log_buy_button = ttk.Button(actions_frame, text="➕ Buy", command=log_buy)
     log_buy_button.grid(column=0, row=2, padx=5, pady=5)
-    log_sell_button = ttk.Button(actions_frame, text="- Sell", command=log_sell)
+    log_sell_button = ttk.Button(actions_frame, text="➖ Sell", command=log_sell)
     log_sell_button.grid(column=1, row=2, padx=5, pady=5)
-    edit_file_button = ttk.Button(actions_frame, text="✎ Edit", command=edit_holdings_file)
+    edit_file_button = ttk.Button(actions_frame, text="✏️ Edit", command=edit_holdings_file)
     edit_file_button.grid(column=2, row=2, padx=5, pady=5)
     analysis_tools_label = ttk.Label(actions_frame, text="Tools", font=("Helvetica", 18))
     analysis_tools_label.grid(row=3, column=0, columnspan=3, padx=5, pady=5)
-    dividend_tracker_button = ttk.Button(actions_frame, text="Dividends", command=dividend_tracker)
-    dividend_tracker_button.grid(column=2, row=4, padx=5, pady=5)
-    benchmark_tool_button = ttk.Button(actions_frame, text="Benchmark", command=benchmark_portfolio_performance)
-    benchmark_tool_button.grid(column=1, row=4, padx=5, pady=5)
-    summary_button = ttk.Button(actions_frame, text="Summary", command=portfolio_summary)
-    summary_button.grid(column=0, row=4, padx=5, pady=5)
-    search_button = ttk.Button(actions_frame, text="Search", command=search_stock)
-    search_button.grid(padx=5, pady=5, column=0, row=5)
-    settings_button = ttk.Button(actions_frame, text="Settings", command=app_settings)
-    settings_button.grid(column=1, row=5, padx=5, pady=5)
-    assistant_button = ttk.Button(actions_frame, text="Assistant", command=lambda: launch_assistant(None))
-    assistant_button.grid(column=2, row=5, padx=5, pady=5)
-    quit_button = ttk.Button(actions_frame, text="Quit", command=lambda: quit_app(None))
+    summary_button = ttk.Button(actions_frame, text="📊 Summary", command=portfolio_summary)
+    summary_button.grid(column=1, row=4, padx=5, pady=5)
+    search_button = ttk.Button(actions_frame, text="🔎 Search", command=search_stock)
+    search_button.grid(column=0, row=5, padx=5, pady=5)
+    assistant_button = ttk.Button(actions_frame, text="🤖 Assistant", command=lambda: launch_assistant(None))
+    assistant_button.grid(column=0, row=4, padx=5, pady=5)
+    dividend_tracker_button = ttk.Button(actions_frame, text="💲 Dividends", command=dividend_tracker)
+    dividend_tracker_button.grid(column=1, row=5, padx=5, pady=5)
+    benchmark_tool_button = ttk.Button(actions_frame, text="📈 Benchmark", command=benchmark_portfolio_performance)
+    benchmark_tool_button.grid(column=2, row=4, padx=5, pady=5)
+    settings_button = ttk.Button(actions_frame, text="⚙️ Settings", command=app_settings)
+    settings_button.grid(column=2, row=5, padx=5, pady=5)
+    quit_button = ttk.Button(actions_frame, text="❌ Quit", command=lambda: quit_app(None))
     quit_button.grid(column=1, row=6, padx=5, pady=5)
     stats_frame.grid(padx=10, pady=10, column=0, row=0)
     table.pack(padx=5, pady=5)
@@ -1161,6 +1157,8 @@ def app_settings():
     settings_json = json.load(open("Settings/settings.json", "r"))
     if settings_json["dark-mode"] == 1:
         dark_mode_var.set(1)
+    if settings_json["eod-summary"] == 1:
+        eod_summary_var.set(1)
     refresh_interval_entry.insert(tk.END, settings_json["refresh-interval"])
     alerts_frame = ttk.LabelFrame(root, text="Alerts")
     list_of_alerts_string = "-----Current Alerts-----\n"
@@ -1859,7 +1857,7 @@ portfolio = Portfolio()
 assistant = Assistant()
 root = tk.Tk()
 root.title("Stonks 📈")
-root.geometry("1675x600")
+root.geometry("1625x600")
 root.protocol("WM_DELETE_WINDOW", lambda: quit_app(None))
 root.bind("<r>", restart_app)
 root.bind("<Escape>", quit_app)
@@ -1915,7 +1913,7 @@ launch_time = time.strftime('%l:%M:%S')
 last_refreshed_text = ttk.Label(root, text=f"↻ {launch_time}", font=("Helvetica", 15))
 actions_frame = ttk.Frame(root)
 table = ttk.Treeview(table_frame, columns=(
-    "Symbol", "Name", "Price", "Shares", "Value", "Initial", "Cost/Share", "Total $", "Total %",
+    "Symbol", "Name", "Price", "Shares", "Value", "Cost/Share", "Total $", "Total %",
     "Day $", "Day %"), height=len(portfolio.securities))
 refresh_interval = "None"
 root.mainloop()
