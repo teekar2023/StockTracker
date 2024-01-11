@@ -152,7 +152,10 @@ class Assistant:
             ("how much have i made today", "day-change"),
             ("what have i made today", "day-change"),
             ("intraday performance", "day-change"),
-            ("whats happening today", "day-change"),
+            ("what happened today", "day-change"),
+            ("what the day been like", "day-change"),
+            ("day performance", "day-change"),
+            ("daily performance", "day-change"),
             ("total change", "total-performance"),
             ("what have i made", "total-performance"),
             ("portfolio performance", "total-performance"),
@@ -161,6 +164,8 @@ class Assistant:
             ("how much money have i made", "total-performance"),
             ("how is this doing", "total-performance"),
             ("how is this holding", "total-performance"),
+            ("how much is this worth", "total-performance"),
+            ("my this position", "total-performance"),
             ("tell me about this", "total-performance"),
             ("what are my best positions", "best-stocks"),
             ("top gainers", "best-stocks"),
@@ -181,7 +186,7 @@ class Assistant:
             ("where are my stocks from", "country-allocation"),
             ("country allocation", "country-allocation"),
             ("what countries am i investing in", "country-allocation"),
-            ("countries", " country-allocation"),
+            ("countries", "country-allocation"),
             ("next dividends", "next-dividends"),
             ("dividend calendar", "next-dividends"),
             ("dividends today", "next-dividends"),
@@ -226,14 +231,47 @@ class Assistant:
             ("when does quarter end", "quarter-time"),
             ("quarter time", "quarter-time"),
             ("fiscal quarter", "quarter-time"),
+            ("fiscal period end", "quarter-time"),
             ("how long is the quarter", "quarter-time"),
             ("best stocks today", "day-stock-rating"),
             ("worst stocks today", "day-stock-rating"),
             ("top gainers today", "day-stock-rating"),
             ("top losers today", "day-stock-rating"),
             ("todays positions", "day-stock-rating"),
-            ("whats doing good today", "day-stock-rating"),
-            ("whats doing bad today", "day-stock-rating")
+            ("what doing good today", "day-stock-rating"),
+            ("what doing bad today", "day-stock-rating"),
+            ("show info on stock", "stock-info"),
+            ("stock information", "stock-info"),
+            ("ticker info", "stock-info"),
+            ("tell me about this", "stock-info"),
+            ("what is this", "stock-info"),
+            ("what company is this", "stock-info"),
+            ("what ETF is this", "stock-info"),
+            ("tell me about this position", "stock-info"),
+            ("what does this do", "stock-info"),
+            ("show me this", "stock-info"),
+            ("summarize portfolio", "summarize-portfolio"),
+            ("show portfolio summary", "summarize-portfolio"),
+            ("holdings summary", "summarize-portfolio"),
+            ("my stocks summary", "summarize-portfolio"),
+            ("shares of this", "amt-shares"),
+            ("how much of this", "amt-shares"),
+            ("ownership amount", "amt-shares"),
+            ("num shares", "amt-shares"),
+            ("these shares", "amt-shares"),
+            ("value of this", "stock-value"),
+            ("how much of this worth", "stock-value"),
+            ("total amount of this", "stock-value"),
+            ("stock value", "stock-value"),
+            ("how much is this value", "stock-value"),
+            ("what is this valued at", "stock-value"),
+            ("what did i pay for this", "cost-basis"),
+            ("initial cost", "cost-basis"),
+            ("cost basis", "cost-basis"),
+            ("what did i buy this for", "cost-basis"),
+            ("how much did i spend on this", "cost-basis"),
+            ("average cost", "cost-basis"),
+            ("initial value", "cost-basis")
         ]
         self.stemmer = nltk.stem.PorterStemmer()
         self.vectorizer = TfidfVectorizer(preprocessor=self.preprocess_text)
@@ -270,7 +308,23 @@ class Assistant:
         if tag == "thanks":
             response = "Happy to help"
         if tag == "day-change":
-            show_eod_summary()
+            symbol_pattern = r"\b[A-Z]{2,5}\b"
+            match = re.search(symbol_pattern, prompt)
+            if match:
+                symbol = match.group()
+                stock: Stock = portfolio.get_security_by_symbol(symbol.upper())
+                if stock == -1:
+                    if portfolio.total_abs_gain <= 0:
+                        response = f"Currently, you have lost ${portfolio.total_abs_gain} or {portfolio.total_rel_gain}% in total"
+                    else:
+                        response = f"You have made a total return of ${portfolio.total_abs_gain} or {portfolio.total_rel_gain}% on your investments"
+                else:
+                    if stock.daily_abs_gain <= 0:
+                        response = f"Your {stock.symbol} position is down today at ${round(stock.daily_abs_gain, 2)} ({round(stock.daily_rel_gain, 2)}%) for a total change of ${round(stock.absolute_gain, 2)} ({round(stock.relative_gain, 2)}%)"
+                    else:
+                        response = f"Your {stock.symbol} position is up today at ${round(stock.daily_abs_gain, 2)} ({round(stock.daily_rel_gain, 2)}%) for a total change of ${round(stock.absolute_gain, 2)} ({round(stock.relative_gain, 2)}%)"
+            else:
+                show_daily_summary()
         if tag == "total-performance":
             symbol_pattern = r"\b[A-Z]{2,5}\b"
             match = re.search(symbol_pattern, prompt)
@@ -326,7 +380,7 @@ class Assistant:
                     open_time += timedelta(days=1)
                 time_delta = open_time - now
                 hours, minutes, seconds = time_delta.seconds // 3600, time_delta.seconds // 60 % 60, time_delta.seconds % 60
-                response = f"Time until market open: {hours} hours, {minutes} minutes, {seconds} seconds"
+                response = f"Market opens in {hours} hours, {minutes} minutes, {seconds} seconds"
         if tag == "help":
             response = ("I am your portfolio tracker assistant. I can help you quickly get what you need to know. Try "
                         "asking me something about your portfolio data")
@@ -339,12 +393,10 @@ class Assistant:
             today = datetime.date(datetime.now())
             quarter_end = get_current_fiscal_quarter_end(10)
             time_remaining = quarter_end - today
-
             months = time_remaining.days // 30
             days = time_remaining.days % 30
             hours, remainder = divmod(time_remaining.seconds, 3600)
             minutes, seconds = divmod(remainder, 60)
-
             output_parts = []
             if months > 0:
                 output_parts.append(f"{months} months")
@@ -358,7 +410,55 @@ class Assistant:
                 output_parts.append(f"{seconds} seconds")
             return f"The current fiscal quarter ends in {', '.join(output_parts)}."
         if tag == "day-stock-rating":
-            show_eod_summary()
+            show_daily_summary()
+        if tag == "stock-info":
+            symbol_pattern = r"\b[A-Z]{2,5}\b"
+            match = re.search(symbol_pattern, prompt)
+            if match:
+                symbol = match.group()
+                search_stock(symbol)
+                response = "Here is the information you requested"
+            else:
+                response = "Please ask again specifying the symbol you want to know more about"
+        if tag == "summarize-portfolio":
+            response = "Here is your portfolio summary"
+            portfolio_summary()
+        if tag == "amt-shares":
+            symbol_pattern = r"\b[A-Z]{2,5}\b"
+            match = re.search(symbol_pattern, prompt)
+            if match:
+                symbol = match.group()
+                stock: Stock = portfolio.get_security_by_symbol(symbol.upper())
+                if stock == -1:
+                    response = f"You do not have any shares of {symbol}"
+                else:
+                    response = f"You have {stock.shares} shares of {symbol}"
+            else:
+                response = "Please ask again specifying the symbol you want to know more about"
+        if tag == "stock-value":
+            symbol_pattern = r"\b[A-Z]{2,5}\b"
+            match = re.search(symbol_pattern, prompt)
+            if match:
+                symbol = match.group()
+                stock: Stock = portfolio.get_security_by_symbol(symbol.upper())
+                if stock == -1:
+                    response = f"You do not have any shares of {symbol}"
+                else:
+                    response = f"Your {symbol} position is currently worth ${round(stock.current_value, 2)}"
+            else:
+                response = "Please ask again specifying the symbol you want to know more about"
+        if tag == "cost-basis":
+            symbol_pattern = r"\b[A-Z]{2,5}\b"
+            match = re.search(symbol_pattern, prompt)
+            if match:
+                symbol = match.group()
+                stock: Stock = portfolio.get_security_by_symbol(symbol.upper())
+                if stock == -1:
+                    response = f"You do not have any shares of {symbol}"
+                else:
+                    response = f"Your {symbol} position has an initial value of ${round(stock.initial_value, 2)} at an average cost of ${round(stock.avg_price, 2)} per share"
+            else:
+                response = f"Your portfolio total cost basis is ${round(portfolio.total_initial_value, 2)}"
         return response
 
 
@@ -401,10 +501,10 @@ def res(q, box, input_box, window):
     if q == "" or q.isspace():
         return
     input_box.delete(0, "end")
-    box.insert(tk.END, f"You: {q}\n")
+    box.insert(tk.END, f"👤: {q}\n")
     response = assistant.get_response(q)
     if response != "NONE":
-        box.insert(tk.END, f"Assistant: {response}\n\n")
+        box.insert(tk.END, f"🤖: {response}\n\n")
         if response == "Goodbye":
             window.destroy()
             update_main_window()
@@ -429,6 +529,7 @@ def update_main_window():
         pass
     except Exception:
         pass
+    root.deiconify()
     for stock in portfolio.securities:
         stock.calculate_gain()
     portfolio.calculate_total_gain()
@@ -567,6 +668,9 @@ def load_app():
         new_stock = Stock(symbol, name, shares, avg_price)
         portfolio.add_security(new_stock)
         current_task += 1
+        if current_task % 5 == 0:
+            other_loading_label.config(text=random.choice(loading_messages))
+            other_loading_label.update()
         loading_bar['value'] = current_task
         loading_bar.update()
         root.deiconify()
@@ -931,11 +1035,14 @@ def on_stock_selected(event):
     return
 
 
-def search_stock():
-    global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label
-    symbol = askstring(title="Stock Search", prompt="Enter symbol to view stock information").upper()
-    if symbol is None or symbol == "" or symbol.isspace():
-        return
+def search_stock(symbol_input=None):
+    global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label
+    if symbol_input is None:
+        symbol = askstring(title="Stock Search", prompt="Enter symbol to view stock information").upper()
+        if symbol is None or symbol == "" or symbol.isspace():
+            return
+    else:
+        symbol = symbol_input
     root.after_cancel(refresh_interval)
     table_frame.destroy()
     stats_frame.destroy()
@@ -1553,6 +1660,19 @@ def portfolio_etf_allocation():
     list_of_holdings = {}
     for stock in portfolio.securities:
         tinfo = yf.Ticker(stock.symbol).info
+        try:
+            etf = tinfo['category']
+            pass
+        except Exception:
+            continue
+        if stock.symbol not in list_of_etfs.keys():
+            list_of_etfs[f'{stock.symbol}'] = etf
+            list_of_holdings[f'{stock.symbol}'] = [stock.symbol]
+        else:
+            for key, value in list_of_etfs.items():
+                if key == stock.symbol:
+                    list_of_etfs[f'{stock.symbol}'] = etf
+                    list_of_holdings[f'{stock.symbol}'].append(stock.symbol)
         # TODO filter etfs and get holdings
     print(list_of_etfs)
     print(list_of_holdings)
@@ -1728,7 +1848,7 @@ def eod_summary():
                 print("Showing eod summary")
                 with open("last-summary-date.txt", "w") as file:
                     file.write(today)
-                show_eod_summary()
+                show_daily_summary()
                 return
         return
     else:
@@ -1740,7 +1860,7 @@ def eod_summary():
         return
 
 
-def show_eod_summary():
+def show_daily_summary():
     global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label
     root.after_cancel(refresh_interval)
     table_frame.destroy()
@@ -1888,9 +2008,9 @@ if os.path.exists("portfolio-holdings.csv"):
     df = pd.read_csv("portfolio-holdings.csv", header=0)
     loading_label = ttk.Label(root, text="Stonks 📈", font=("Helvetica", 30))
     loading_label.pack(pady=150)
-    loading_messages = ["Fetching Data...", "Downloading Market Info...", "Calculating Net Worth...",
-                        "Planting Money Tree...", "Brewing Profit Potion...", "Loading Portfolio...",
-                        "Getting Holdings...", "Worshipping Investment Gods...", "Building Database..."]
+    loading_messages = ["Loading Portfolio...", "Downloading Market Info...", "Planting Money Tree...",
+                        "Brewing Profit Potion...", "Getting Data...", "Fetching Holdings...",
+                        "Worshipping Investment Gods...", "Building Database...", "One Moment..."]
     other_loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 15))
     other_loading_label.pack()
     loading_bar = ttk.Progressbar(root, orient="horizontal", length=500, mode="determinate")

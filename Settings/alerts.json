@@ -6,11 +6,6 @@
     },
     {
         "symbol": "PORTFOLIO",
-        "target-price": 1250.0,
-        "tresh": "Rises Above"
-    },
-    {
-        "symbol": "PORTFOLIO",
         "target-price": 1200.0,
         "tresh": "Falls Below"
     }
