@@ -18,10 +18,8 @@ try:
     import nltk
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.naive_bayes import MultinomialNB
-    from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.model_selection import GridSearchCV
-    from nltk.corpus import stopwords
 except Exception as e:
     print(f"Error importing modules: {e}\n\nAttempting to install all dependencies...")
     os.system("pip3 install pandas")
@@ -292,7 +290,14 @@ class Assistant:
             ("loss of this", "total-performance"),
             ("gain of this", "total-performance"),
             ("how much do i have", "amt-shares"),
-            ("how many of this", "amt-shares")
+            ("how many of this", "amt-shares"),
+            ("tell me when this reaches price", "create-alert"),
+            ("remind me when price rises above", "create-alert"),
+            ("when price falls below", "create-alert"),
+            ("create alert", "create-alert"),
+            ("add price alert", "create-alert"),
+            ("price alert at", "create-alert"),
+            ("alert me when", "create-alert")
         ]
         self.stemmer = nltk.stem.PorterStemmer()
         self.vectorizer = TfidfVectorizer(preprocessor=self.preprocess_text)
@@ -500,6 +505,54 @@ class Assistant:
                     response = f"Your {symbol} position has an initial value of ${round(stock.initial_value, 2)} at an average cost of ${round(stock.avg_price, 2)} per share"
             else:
                 response = f"Your portfolio total cost basis is ${round(portfolio.total_initial_value, 2)}"
+        if tag == "create-alert":
+            symbol_pattern = r"\b[A-Z]{2,5}\b"
+            price_pattern = r'\b\d+\b'
+            match = re.search(symbol_pattern, prompt)
+            numbers = re.findall(price_pattern, prompt)
+            if numbers and match:
+                target_price = float(numbers[0])
+                symbol = match.group()
+                stock: Stock = portfolio.get_security_by_symbol(symbol.upper())
+                if stock == -1:
+                    response = f"You do not have any shares of {symbol}"
+                else:
+                    if target_price > stock.current_price:
+                        tresh = "Rises Above"
+                        response = f"Okay, I will alert you when {symbol} rises above ${target_price}"
+                    else:
+                        tresh = "Falls Below"
+                        response = f"Okay, I will alert you when {symbol} falls below ${target_price}"
+                    alerts_json = json.load(open("Settings/alerts.json", "r"))
+                    alerts = []
+                    for alert in alerts_json:
+                        alerts.append(alert)
+                    symbol_list = []
+                    for security in portfolio.securities:
+                        symbol_list.append(security.symbol)
+                    symbol_entry_value = symbol
+                    if symbol_entry_value == "P" or symbol_entry_value == "PORTFOLIO" or symbol_entry_value == "PORTFOLIO VALUE" or symbol_entry_value == "VALUE":
+                        new_symbol = "PORTFOLIO"
+                    if symbol_entry_value not in symbol_list:
+                        showerror(title="Create Alert", message="Symbol not in portfolio")
+                        return
+                    else:
+                        new_symbol = symbol_entry_value
+                    new_alert = {
+                        "symbol": new_symbol,
+                        "target-price": float(target_price),
+                        "tresh": tresh
+                    }
+                    alerts.append(new_alert)
+                    new_alerts_object = json.dumps(alerts, indent=4)
+                    alerts_file = open("Settings/alerts.json", "w+")
+                    alerts_file.truncate(0)
+                    with alerts_file as outfile:
+                        outfile.write(new_alerts_object)
+                        alerts_file.close()
+                        pass
+            else:
+                response = "Please ask again specifying the symbol and price you want to be alerted at"
         return response
 
 
@@ -1382,9 +1435,15 @@ def create_alert():
     alerts = []
     for alert in alerts_json:
         alerts.append(alert)
+    symbol_list = []
+    for security in portfolio.securities:
+        symbol_list.append(security.symbol)
     symbol_entry_value = symbol_entry.get().upper()
     if symbol_entry_value == "P" or symbol_entry_value == "PORTFOLIO" or symbol_entry_value == "PORTFOLIO VALUE" or symbol_entry_value == "VALUE":
         new_symbol = "PORTFOLIO"
+    if symbol_entry_value not in symbol_list:
+        showerror(title="Create Alert", message="Symbol not in portfolio")
+        return
     else:
         new_symbol = symbol_entry_value
     new_alert = {
@@ -1393,11 +1452,11 @@ def create_alert():
         "tresh": tresh_dropdown.get()
     }
     alerts.append(new_alert)
-    alerts_object = json.dumps(alerts, indent=4)
+    new_alerts_object = json.dumps(alerts, indent=4)
     alerts_file = open("Settings/alerts.json", "w+")
     alerts_file.truncate(0)
     with alerts_file as outfile:
-        outfile.write(alerts_object)
+        outfile.write(new_alerts_object)
         alerts_file.close()
         pass
     create_alert_window.destroy()
