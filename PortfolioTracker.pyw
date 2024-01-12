@@ -135,6 +135,12 @@ class Assistant:
             ("hey", "greeting"),
             ("exit", "goodbye"),
             ("cancel", "goodbye"),
+            ("thanks bye", "goodbye"),
+            ("cya", "goodbye"),
+            ("see ya", "goodbye"),
+            ("ttyl", "goodbye"),
+            ("talk to you later", "goodbye"),
+            ("heyo", "greeting"),
             ("net worth", "current-value"),
             ("current value", "current-value"),
             ("my money", "current-value"),
@@ -271,7 +277,14 @@ class Assistant:
             ("what did i buy this for", "cost-basis"),
             ("how much did i spend on this", "cost-basis"),
             ("average cost", "cost-basis"),
-            ("initial value", "cost-basis")
+            ("initial value", "cost-basis"),
+            ("buy price of", "cost-basis"),
+            ("how much have i spent on this", "cost-basis"),
+            ("what have i spent on this", "cost-basis"),
+            ("what have i payed for this", "cost-basis"),
+            ("how much have i lost on it", "total-performance"),
+            ("loss of this", "total-performance"),
+            ("gain of this", "total-performance")
         ]
         self.stemmer = nltk.stem.PorterStemmer()
         self.vectorizer = TfidfVectorizer(preprocessor=self.preprocess_text)
@@ -362,25 +375,39 @@ class Assistant:
             pass  # TODO
         if tag == "close-time":
             now = datetime.now(pytz.timezone('US/Eastern'))
-            close_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
-            if close_time < now:
-                response = "Market is currently closed"
+            if now.weekday() in [5, 6]:
+                response = "Market is closed on weekends"
             else:
-                time_delta = close_time - now
-                hours, minutes, seconds = time_delta.seconds // 3600, time_delta.seconds // 60 % 60, time_delta.seconds % 60
-                response = f"Market closes in {hours} hours, {minutes} minutes, {seconds} seconds"
+                close_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
+                if close_time < now:
+                    response = "Market is currently closed"
+                else:
+                    time_delta = close_time - now
+                    hours, minutes, seconds = time_delta.seconds // 3600, (
+                                time_delta.seconds // 60) % 60, time_delta.seconds % 60
+                    response = f"Market closes in {hours} hours, {minutes} minutes, {seconds} seconds"
         if tag == "open-time":
             now = datetime.now(pytz.timezone('US/Eastern'))
-            open_time = now.replace(hour=9, minute=30, second=0, microsecond=0)
-            close_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
-            if open_time < now < close_time:
-                response = "Market is currently open"
-            else:
-                if open_time < now:
-                    open_time += timedelta(days=1)
+            if now.weekday() in [5, 6]:
+                next_open_day = (7 - now.weekday()) % 7
+                open_time = now.replace(hour=9, minute=30, second=0, microsecond=0) + timedelta(days=next_open_day)
                 time_delta = open_time - now
-                hours, minutes, seconds = time_delta.seconds // 3600, time_delta.seconds // 60 % 60, time_delta.seconds % 60
-                response = f"Market opens in {hours} hours, {minutes} minutes, {seconds} seconds"
+                hours, minutes, seconds = time_delta.seconds // 3600, (
+                            time_delta.seconds // 60) % 60, time_delta.seconds % 60
+                response = f"Market opens on Monday in {hours} hours, {minutes} minutes, {seconds} seconds."
+            else:
+                open_time = now.replace(hour=9, minute=30, second=0, microsecond=0)
+                close_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
+                if open_time < now < close_time:
+                    response = "Market is currently open"
+                else:
+                    if now > close_time:
+                        open_time += timedelta(days=1)
+
+                    time_delta = open_time - now
+                    hours, minutes, seconds = time_delta.seconds // 3600, (
+                                time_delta.seconds // 60) % 60, time_delta.seconds % 60
+                    response = f"Market opens in {hours} hours, {minutes} minutes, {seconds} seconds"
         if tag == "help":
             response = ("I am your portfolio tracker assistant. I can help you quickly get what you need to know. Try "
                         "asking me something about your portfolio data")
