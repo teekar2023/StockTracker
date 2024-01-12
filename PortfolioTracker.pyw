@@ -18,6 +18,10 @@ try:
     import nltk
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.naive_bayes import MultinomialNB
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.model_selection import GridSearchCV
+    from nltk.corpus import stopwords
 except Exception as e:
     print(f"Error importing modules: {e}\n\nAttempting to install all dependencies...")
     os.system("pip3 install pandas")
@@ -144,7 +148,7 @@ class Assistant:
             ("net worth", "current-value"),
             ("current value", "current-value"),
             ("my money", "current-value"),
-            ("my holdings", "current-value"),
+            ("how much is my portfolio worth", "current-value"),
             ("thank you", "thanks"),
             ("been helpful", "thanks"),
             ("thx", "thanks"),
@@ -171,6 +175,8 @@ class Assistant:
             ("how is this doing", "total-performance"),
             ("how is this holding", "total-performance"),
             ("how much is this worth", "total-performance"),
+            ("from this", "total-performance"),
+            ("return on my investments", "total-performance"),
             ("my this position", "total-performance"),
             ("tell me about this", "total-performance"),
             ("what are my best positions", "best-stocks"),
@@ -284,16 +290,24 @@ class Assistant:
             ("what have i payed for this", "cost-basis"),
             ("how much have i lost on it", "total-performance"),
             ("loss of this", "total-performance"),
-            ("gain of this", "total-performance")
+            ("gain of this", "total-performance"),
+            ("how much do i have", "amt-shares"),
+            ("how many of this", "amt-shares")
         ]
         self.stemmer = nltk.stem.PorterStemmer()
         self.vectorizer = TfidfVectorizer(preprocessor=self.preprocess_text)
         x_train = self.vectorizer.fit_transform([text for text, tag in self.training_data])
         y_train = [tag for text, tag in self.training_data]
-        self.model = MultinomialNB()
-        self.model.fit(x_train, y_train)
-        print("Assistant initialized")
-        return
+        param_grid = {'alpha': [0.1, 0.5, 1.0]}
+        grid_search = GridSearchCV(MultinomialNB(), param_grid, cv=5)
+        grid_search.fit(x_train, y_train)
+        self.model = grid_search.best_estimator_
+        model_accuracy = None
+        try:
+            model_accuracy = round(self.model.score(x_train, y_train) * 100, 2)
+        except Exception:
+            pass
+        print(f"Assistant initialized with accuracy: {model_accuracy}")
 
     def preprocess_text(self, text):
         tokens = nltk.word_tokenize(text.lower())
