@@ -7,7 +7,6 @@ import re
 from tkinter import ttk, filedialog
 from tkinter.messagebox import askyesno, showinfo, showerror
 from tkinter.simpledialog import askstring
-
 from dateutil.relativedelta import relativedelta
 
 try:
@@ -17,9 +16,8 @@ try:
     from matplotlib import pyplot as plt
     import nltk
     from sklearn.feature_extraction.text import TfidfVectorizer
-    from sklearn.naive_bayes import MultinomialNB
-    from sklearn.ensemble import RandomForestClassifier
     from sklearn.model_selection import GridSearchCV
+    from sklearn.svm import SVC
 except Exception as e:
     print(f"Error importing modules: {e}\n\nAttempting to install all dependencies...")
     os.system("pip3 install pandas")
@@ -202,10 +200,6 @@ class Assistant:
             ("dividends today", "next-dividends"),
             ("dividends coming up", "next-dividends"),
             ("dividend payouts today", "next-dividends"),
-            ("what should i invest in", "investment-ideas"),
-            ("any ideas on what do buy", "investment-ideas"),
-            ("what should i put my money into", "investment-ideas"),
-            ("what type of stocks should i buy", "investment-ideas"),
             ("time left in day", "close-time"),
             ("how long until market close", "close-time"),
             ("what time can i trade until", "close-time"),
@@ -252,6 +246,8 @@ class Assistant:
             ("what doing bad today", "day-stock-rating"),
             ("show info on stock", "stock-info"),
             ("stock information", "stock-info"),
+            ("search for", "stock-info"),
+            ("about this symbol", "stock-info"),
             ("ticker info", "stock-info"),
             ("tell me about this", "stock-info"),
             ("what is this", "stock-info"),
@@ -277,9 +273,10 @@ class Assistant:
             ("what is this valued at", "stock-value"),
             ("what did i pay for this", "cost-basis"),
             ("initial cost", "cost-basis"),
-            ("cost basis", "cost-basis"),
+            ("cost basis of this", "cost-basis"),
             ("what did i buy this for", "cost-basis"),
             ("how much did i spend on this", "cost-basis"),
+            ("average cost per share of this", "cost-basis"),
             ("average cost", "cost-basis"),
             ("initial value", "cost-basis"),
             ("buy price of", "cost-basis"),
@@ -291,28 +288,36 @@ class Assistant:
             ("gain of this", "total-performance"),
             ("how much do i have", "amt-shares"),
             ("how many of this", "amt-shares"),
+            ("how many shares of this", "amt-shares"),
             ("tell me when this reaches price", "create-alert"),
             ("remind me when price rises above", "create-alert"),
             ("when price falls below", "create-alert"),
             ("create alert", "create-alert"),
             ("add price alert", "create-alert"),
             ("price alert at", "create-alert"),
-            ("alert me when", "create-alert")
+            ("alert me when", "create-alert"),
+            ("export portfolio", "save-summary"),
+            ("save summary", "save-summary"),
+            ("save portfolio summary to file", "save-summary"),
+            ("share summary", "save-summary"),
+            ("send summary to friend", "save-summary"),
+            ("how much have i made", "total-performance")
         ]
         self.stemmer = nltk.stem.PorterStemmer()
         self.vectorizer = TfidfVectorizer(preprocessor=self.preprocess_text)
         x_train = self.vectorizer.fit_transform([text for text, tag in self.training_data])
         y_train = [tag for text, tag in self.training_data]
-        param_grid = {'alpha': [0.1, 0.5, 1.0]}
-        grid_search = GridSearchCV(MultinomialNB(), param_grid, cv=5)
+        param_grid = {}
+        grid_search = GridSearchCV(SVC(), param_grid, cv=5)
         grid_search.fit(x_train, y_train)
         self.model = grid_search.best_estimator_
-        model_accuracy = None
+        model_accuracy = round(grid_search.best_score_ * 100, 2)
         try:
             model_accuracy = round(self.model.score(x_train, y_train) * 100, 2)
         except Exception:
             pass
-        print(f"Assistant initialized with accuracy: {model_accuracy}")
+        print(f"Assistant initialized | {model_accuracy}")
+        return
 
     def preprocess_text(self, text):
         tokens = nltk.word_tokenize(text.lower())
@@ -390,8 +395,6 @@ class Assistant:
             portfolio_country_allocation()
         if tag == "next-dividends":
             pass  # TODO
-        if tag == "investment-ideas":
-            pass  # TODO
         if tag == "close-time":
             now = datetime.now(pytz.timezone('US/Eastern'))
             if now.weekday() in [5, 6]:
@@ -403,7 +406,7 @@ class Assistant:
                 else:
                     time_delta = close_time - now
                     hours, minutes, seconds = time_delta.seconds // 3600, (
-                                time_delta.seconds // 60) % 60, time_delta.seconds % 60
+                            time_delta.seconds // 60) % 60, time_delta.seconds % 60
                     response = f"Market closes in {hours} hours, {minutes} minutes, {seconds} seconds"
         if tag == "open-time":
             now = datetime.now(pytz.timezone('US/Eastern'))
@@ -412,7 +415,7 @@ class Assistant:
                 open_time = now.replace(hour=9, minute=30, second=0, microsecond=0) + timedelta(days=next_open_day)
                 time_delta = open_time - now
                 hours, minutes, seconds = time_delta.seconds // 3600, (
-                            time_delta.seconds // 60) % 60, time_delta.seconds % 60
+                        time_delta.seconds // 60) % 60, time_delta.seconds % 60
                 response = f"Market opens on Monday in {hours} hours, {minutes} minutes, {seconds} seconds."
             else:
                 open_time = now.replace(hour=9, minute=30, second=0, microsecond=0)
@@ -425,7 +428,7 @@ class Assistant:
 
                     time_delta = open_time - now
                     hours, minutes, seconds = time_delta.seconds // 3600, (
-                                time_delta.seconds // 60) % 60, time_delta.seconds % 60
+                            time_delta.seconds // 60) % 60, time_delta.seconds % 60
                     response = f"Market opens in {hours} hours, {minutes} minutes, {seconds} seconds"
         if tag == "help":
             response = ("I am your portfolio tracker assistant. I can help you quickly get what you need to know. Try "
@@ -553,6 +556,9 @@ class Assistant:
                         pass
             else:
                 response = "Please ask again specifying the symbol and price you want to be alerted at"
+        if tag == "save-summary":
+            save_portfolio_summary()
+            response = "Portfolio summary saved to file"
         return response
 
 
@@ -599,35 +605,28 @@ def res(q, box, input_box, window):
     response = assistant.get_response(q)
     if response != "NONE":
         box.insert(tk.END, f"🤖: {response}\n\n")
+        window.update()
         if response == "Goodbye":
-            window.destroy()
             update_main_window()
     box.yview(tk.END)
     box.config(state="disabled")
 
 
 def update_main_window():
-    global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label, loading_bar, current_task, loading_tasks
-    root.geometry("1625x600")
-    try:
-        table_frame.destroy()
-        stats_frame.destroy()
-        actions_frame.destroy()
-        last_refreshed_text.destroy()
-        loading_label.destroy()
-        other_loading_label.destroy()
-        loading_bar.destroy()
-        for child in root.winfo_children():
-            if isinstance(child, tk.Toplevel):
-                child.destroy()
-        pass
-    except Exception:
-        pass
+    global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label, loading_bar, current_task, loading_tasks, portfolio_frame
+    root.geometry("1500x525")
     root.deiconify()
     for stock in portfolio.securities:
         stock.calculate_gain()
+        root.update()
     portfolio.calculate_total_gain()
     refresh_interval = root.after(settings_json["refresh-interval"] * 1000, update_main_window)
+    try:
+        for child in root.winfo_children():
+            child.destroy()
+        pass
+    except Exception:
+        pass
     table_frame = ttk.LabelFrame(root, text="Holdings")
     table = ttk.Treeview(table_frame, columns=(
         "Symbol", "Name", "Price", "Shares", "Value", "Cost/Share", "Total $", "Total %",
@@ -661,46 +660,53 @@ def update_main_window():
     table.column("#9", width=115)
     table.column("#10", width=115)
     stats_frame = ttk.Frame(root)
-    total_value_label = ttk.Label(stats_frame, text=f"Value | ${portfolio.total_value}", font=("Helvetica", 20))
+    daily_text = ""
+    now = datetime.now(pytz.timezone('US/Eastern'))
+    if is_weekend(now):
+        daily_text = "Daily (W)"
+    else:
+        daily_text = "Daily"
+    total_value_label = ttk.Label(stats_frame, text=f"Value\n-----\n${portfolio.total_value}", font=("Helvetica", 18))
     daily_gain_label = ttk.Label(stats_frame,
-                                 text=f"Daily | ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
+                                 text=f"{daily_text}\n-----\n${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
                                  font=("Helvetica", 18))
-    total_gain_label = ttk.Label(stats_frame, text=f"Total | ${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
+    total_gain_label = ttk.Label(stats_frame,
+                                 text=f"Total\n-----\n${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
                                  font=("Helvetica", 18))
-    total_value_label.grid(column=0, row=0, padx=5, pady=5)
-    daily_gain_label.grid(column=0, row=1, padx=5, pady=5)
-    total_gain_label.grid(column=0, row=2, padx=5, pady=5)
+    total_value_label.grid(column=0, row=0, padx=50, pady=10)
+    daily_gain_label.grid(column=1, row=0, padx=50, pady=10)
+    total_gain_label.grid(column=2, row=0, padx=50, pady=10)
     actions_frame = ttk.Frame(root)
-    refreshed_time = time.strftime('%l:%M:%S')
-    last_refreshed_text = ttk.Label(root, text=f"↻ {refreshed_time}", font=("Helvetica", 15))
-    log_transaction_label = ttk.Label(actions_frame, text="Portfolio", font=("Helvetica", 18))
-    log_transaction_label.grid(column=0, row=1, columnspan=3, padx=5, pady=5)
-    log_buy_button = ttk.Button(actions_frame, text="➕ Buy", command=log_buy)
-    log_buy_button.grid(column=0, row=2, padx=5, pady=5)
-    log_sell_button = ttk.Button(actions_frame, text="➖ Sell", command=log_sell)
-    log_sell_button.grid(column=1, row=2, padx=5, pady=5)
-    edit_file_button = ttk.Button(actions_frame, text="✏️ Edit", command=edit_holdings_file)
-    edit_file_button.grid(column=2, row=2, padx=5, pady=5)
+    portfolio_frame = ttk.Frame(root)
+    log_buy_button = ttk.Button(portfolio_frame, text="➕ Buy", command=log_buy)
+    log_buy_button.grid(column=0, row=0, padx=5, pady=5)
+    log_sell_button = ttk.Button(portfolio_frame, text="➖ Sell", command=log_sell)
+    log_sell_button.grid(column=1, row=0, padx=5, pady=5)
+    edit_file_button = ttk.Button(portfolio_frame, text="✏️ Edit", command=edit_holdings_file)
+    edit_file_button.grid(column=2, row=0, padx=5, pady=5)
     analysis_tools_label = ttk.Label(actions_frame, text="Tools", font=("Helvetica", 18))
-    analysis_tools_label.grid(row=3, column=0, columnspan=3, padx=5, pady=5)
-    summary_button = ttk.Button(actions_frame, text="📊 Summary", command=portfolio_summary)
-    summary_button.grid(column=1, row=4, padx=5, pady=5)
-    search_button = ttk.Button(actions_frame, text="🔎 Search", command=search_stock)
-    search_button.grid(column=0, row=5, padx=5, pady=5)
+    analysis_tools_label.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
     assistant_button = ttk.Button(actions_frame, text="🤖 Assistant", command=lambda: launch_assistant(None))
-    assistant_button.grid(column=0, row=4, padx=5, pady=5)
-    dividend_tracker_button = ttk.Button(actions_frame, text="💲 Dividends", command=dividend_tracker)
-    dividend_tracker_button.grid(column=1, row=5, padx=5, pady=5)
-    benchmark_tool_button = ttk.Button(actions_frame, text="📈 Benchmark", command=benchmark_portfolio_performance)
-    benchmark_tool_button.grid(column=2, row=4, padx=5, pady=5)
+    assistant_button.grid(column=0, row=1, padx=5, pady=5)
+    summary_button = ttk.Button(actions_frame, text="📊 Summary", command=portfolio_summary)
+    summary_button.grid(column=1, row=1, padx=5, pady=5)
+    search_button = ttk.Button(actions_frame, text="🔎 Discover", command=search_stock)
+    search_button.grid(column=0, row=2, padx=5, pady=5)
+    dividend_tracker_button = ttk.Button(actions_frame, text="💲 Dividend", command=dividend_tracker)
+    dividend_tracker_button.grid(column=1, row=2, padx=5, pady=5)
+    benchmark_tool_button = ttk.Button(actions_frame, text="📈 Compare", command=benchmark_portfolio_performance)
+    benchmark_tool_button.grid(column=0, row=3, padx=5, pady=5)
     settings_button = ttk.Button(actions_frame, text="⚙️ Settings", command=app_settings)
-    settings_button.grid(column=2, row=5, padx=5, pady=5)
-    quit_button = ttk.Button(actions_frame, text="❌ Quit", command=lambda: quit_app(None))
-    quit_button.grid(column=1, row=6, padx=5, pady=5)
+    settings_button.grid(column=1, row=3, padx=5, pady=5)
+    quit_button = ttk.Button(actions_frame, text="❌", command=lambda: quit_app(None))
+    quit_button.grid(column=0, row=4, padx=5, pady=5, columnspan=2)
     stats_frame.grid(padx=10, pady=10, column=0, row=0)
     table.pack(padx=5, pady=5)
     table_frame.grid(padx=10, pady=10, column=0, row=1)
+    current_time = time.strftime('%l:%M:%S')
+    last_refreshed_text = ttk.Label(root, text=f"↻ {current_time}", font=("Helvetica", 15))
     last_refreshed_text.grid(padx=5, pady=5, column=0, row=2)
+    portfolio_frame.grid(padx=10, pady=10, column=1, row=0)
     actions_frame.grid(padx=10, pady=10, column=1, row=1)
     root.deiconify()
     root.update()
@@ -801,43 +807,49 @@ def load_app():
     table.column("#9", width=115)
     table.column("#10", width=115)
     portfolio.calculate_total_gain()
-    total_value_label = ttk.Label(stats_frame, text=f"Value | ${portfolio.total_value}", font=("Helvetica", 20))
+    daily_text = ""
+    now = datetime.now(pytz.timezone('US/Eastern'))
+    if is_weekend(now):
+        daily_text = "Daily (W)"
+    else:
+        daily_text = "Daily"
+    total_value_label = ttk.Label(stats_frame, text=f"Value\n-----\n${portfolio.total_value}", font=("Helvetica", 18))
     daily_gain_label = ttk.Label(stats_frame,
-                                 text=f"Daily | ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
+                                 text=f"{daily_text}\n-----\n${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
                                  font=("Helvetica", 18))
-    total_gain_label = ttk.Label(stats_frame, text=f"Total | ${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
+    total_gain_label = ttk.Label(stats_frame,
+                                 text=f"Total\n-----\n${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
                                  font=("Helvetica", 18))
-    total_value_label.grid(column=0, row=0, padx=5, pady=5)
-    daily_gain_label.grid(column=0, row=1, padx=5, pady=5)
-    total_gain_label.grid(column=0, row=2, padx=5, pady=5)
-    log_transaction_label = ttk.Label(actions_frame, text="Portfolio", font=("Helvetica", 18))
-    log_transaction_label.grid(column=0, row=1, columnspan=3, padx=5, pady=5)
-    log_buy_button = ttk.Button(actions_frame, text="➕ Buy", command=log_buy)
-    log_buy_button.grid(column=0, row=2, padx=5, pady=5)
-    log_sell_button = ttk.Button(actions_frame, text="➖ Sell", command=log_sell)
-    log_sell_button.grid(column=1, row=2, padx=5, pady=5)
-    edit_file_button = ttk.Button(actions_frame, text="✏️ Edit", command=edit_holdings_file)
-    edit_file_button.grid(column=2, row=2, padx=5, pady=5)
+    total_value_label.grid(column=0, row=0, padx=50, pady=10)
+    daily_gain_label.grid(column=1, row=0, padx=50, pady=10)
+    total_gain_label.grid(column=2, row=0, padx=50, pady=10)
+    log_buy_button = ttk.Button(portfolio_frame, text="➕ Buy", command=log_buy)
+    log_buy_button.grid(column=0, row=0, padx=5, pady=5)
+    log_sell_button = ttk.Button(portfolio_frame, text="➖ Sell", command=log_sell)
+    log_sell_button.grid(column=1, row=0, padx=5, pady=5)
+    edit_file_button = ttk.Button(portfolio_frame, text="✏️ Edit", command=edit_holdings_file)
+    edit_file_button.grid(column=2, row=0, padx=5, pady=5)
     analysis_tools_label = ttk.Label(actions_frame, text="Tools", font=("Helvetica", 18))
-    analysis_tools_label.grid(row=3, column=0, columnspan=3, padx=5, pady=5)
-    summary_button = ttk.Button(actions_frame, text="📊 Summary", command=portfolio_summary)
-    summary_button.grid(column=1, row=4, padx=5, pady=5)
-    search_button = ttk.Button(actions_frame, text="🔎 Search", command=search_stock)
-    search_button.grid(column=0, row=5, padx=5, pady=5)
+    analysis_tools_label.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
     assistant_button = ttk.Button(actions_frame, text="🤖 Assistant", command=lambda: launch_assistant(None))
-    assistant_button.grid(column=0, row=4, padx=5, pady=5)
-    dividend_tracker_button = ttk.Button(actions_frame, text="💲 Dividends", command=dividend_tracker)
-    dividend_tracker_button.grid(column=1, row=5, padx=5, pady=5)
-    benchmark_tool_button = ttk.Button(actions_frame, text="📈 Benchmark", command=benchmark_portfolio_performance)
-    benchmark_tool_button.grid(column=2, row=4, padx=5, pady=5)
+    assistant_button.grid(column=0, row=1, padx=5, pady=5)
+    summary_button = ttk.Button(actions_frame, text="📊 Summary", command=portfolio_summary)
+    summary_button.grid(column=1, row=1, padx=5, pady=5)
+    search_button = ttk.Button(actions_frame, text="🔎 Discover", command=search_stock)
+    search_button.grid(column=0, row=2, padx=5, pady=5)
+    dividend_tracker_button = ttk.Button(actions_frame, text="💲 Dividend", command=dividend_tracker)
+    dividend_tracker_button.grid(column=1, row=2, padx=5, pady=5)
+    benchmark_tool_button = ttk.Button(actions_frame, text="📈 Compare", command=benchmark_portfolio_performance)
+    benchmark_tool_button.grid(column=0, row=3, padx=5, pady=5)
     settings_button = ttk.Button(actions_frame, text="⚙️ Settings", command=app_settings)
-    settings_button.grid(column=2, row=5, padx=5, pady=5)
-    quit_button = ttk.Button(actions_frame, text="❌ Quit", command=lambda: quit_app(None))
-    quit_button.grid(column=1, row=6, padx=5, pady=5)
+    settings_button.grid(column=1, row=3, padx=5, pady=5)
+    quit_button = ttk.Button(actions_frame, text="❌", command=lambda: quit_app(None))
+    quit_button.grid(column=0, row=4, padx=5, pady=5, columnspan=2)
     stats_frame.grid(padx=10, pady=10, column=0, row=0)
     table.pack(padx=5, pady=5)
     table_frame.grid(padx=10, pady=10, column=0, row=1)
     last_refreshed_text.grid(padx=5, pady=5, column=0, row=2)
+    portfolio_frame.grid(padx=10, pady=10, column=1, row=0)
     actions_frame.grid(padx=10, pady=10, column=1, row=1)
     root.deiconify()
     root.update()
@@ -1050,10 +1062,12 @@ def on_stock_selected(event):
     selected_item = table.selection()[0]
     item_values = table.item(selected_item)['values']
     symbol = item_values[0]
-    table_frame.destroy()
-    stats_frame.destroy()
-    actions_frame.destroy()
-    last_refreshed_text.destroy()
+    try:
+        for child in root.winfo_children():
+            child.destroy()
+        pass
+    except Exception:
+        pass
     root.geometry("1030x885")
     stock: Stock = portfolio.get_security_by_symbol(symbol)
     stock_title_label = ttk.Label(root, text=f"{stock.name}\n{stock.symbol}", font=("Helvetica", 30))
@@ -1138,10 +1152,12 @@ def search_stock(symbol_input=None):
     else:
         symbol = symbol_input
     root.after_cancel(refresh_interval)
-    table_frame.destroy()
-    stats_frame.destroy()
-    actions_frame.destroy()
-    last_refreshed_text.destroy()
+    try:
+        for child in root.winfo_children():
+            child.destroy()
+        pass
+    except Exception:
+        pass
     root.geometry("1030x885")
     tinfo = yf.Ticker(symbol).info
     stock_data = yf.download(symbol, period="1d", prepost=True)
@@ -1245,10 +1261,12 @@ def dividend_tracker():
         if "dividendYield" in tinfo:
             dividend_stock_list.append(security)
     root.after_cancel(refresh_interval)
-    table_frame.destroy()
-    stats_frame.destroy()
-    actions_frame.destroy()
-    last_refreshed_text.destroy()
+    try:
+        for child in root.winfo_children():
+            child.destroy()
+        pass
+    except Exception:
+        pass
     root.geometry("600x460")
     dividend_tracker_title = ttk.Label(root, text="Dividend Tracker", font=("Helvetica", 30))
     dividend_tracker_title.grid(padx=5, pady=5, column=0, row=0, columnspan=2)
@@ -1330,10 +1348,12 @@ def benchmark_portfolio_performance():
 def app_settings():
     global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label
     root.after_cancel(refresh_interval)
-    table_frame.destroy()
-    stats_frame.destroy()
-    actions_frame.destroy()
-    last_refreshed_text.destroy()
+    try:
+        for child in root.winfo_children():
+            child.destroy()
+        pass
+    except Exception:
+        pass
     root.geometry("660x350")
     settings_window_title = ttk.Label(root, text="Settings", font=("Helvetica", 30))
     settings_window_title.grid(padx=5, pady=5, column=0, row=0, columnspan=3)
@@ -1366,9 +1386,9 @@ def app_settings():
     alerts_json = json.load(open("Settings/alerts.json", "r"))
     for alert in alerts_json:
         if alert["tresh"] == "Rises Above":
-            list_of_alerts_string += f"{alert["symbol"]} | >${alert["target-price"]}\n"
+            list_of_alerts_string += f"{alert["symbol"]} | ≥${alert["target-price"]}\n"
         else:
-            list_of_alerts_string += f"{alert["symbol"]} | <${alert["target-price"]}\n"
+            list_of_alerts_string += f"{alert["symbol"]} | ≤${alert["target-price"]}\n"
     list_of_alerts_text = ttk.Label(alerts_frame, text=list_of_alerts_string)
     list_of_alerts_text.grid(padx=5, pady=5, column=0, row=0)
     add_alert_button = ttk.Button(alerts_frame, text="Create", command=create_alert)
@@ -1415,7 +1435,10 @@ def create_alert():
     create_alert_title.pack(padx=5, pady=5)
     symbol_entry_label = ttk.Label(create_alert_window, text="Symbol")
     symbol_entry_label.pack(padx=5, pady=5)
-    symbol_entry = ttk.Entry(create_alert_window, width=10)
+    symbol_options = ["Portfolio Value"]
+    for stock in portfolio.securities:
+        symbol_options.append(stock.symbol)
+    symbol_entry = ttk.Combobox(create_alert_window, width=25, state="readonly", values=symbol_options)
     symbol_entry.pack(padx=5, pady=5)
     price_entry_label = ttk.Label(create_alert_window, text="Price")
     price_entry_label.pack(padx=5, pady=5)
@@ -1423,8 +1446,7 @@ def create_alert():
     price_entry.pack(padx=5, pady=5)
     tresh_dropdown_label = ttk.Label(create_alert_window, text="Type")
     tresh_dropdown_label.pack(padx=5, pady=5)
-    tresh_dropdown = ttk.Combobox(create_alert_window, width=25, state="readonly",
-                                  values=["Rises Above", "Falls Below"])
+    tresh_dropdown = ttk.Combobox(create_alert_window, width=25, state="readonly", values=["Rises Above", "Falls Below"])
     tresh_dropdown.pack(padx=5, pady=5)
     create_alert_wait_var = tk.IntVar()
     create_button = ttk.Button(create_alert_window, text="Create Alert", style="Accent.TButton",
@@ -1439,11 +1461,8 @@ def create_alert():
     for security in portfolio.securities:
         symbol_list.append(security.symbol)
     symbol_entry_value = symbol_entry.get().upper()
-    if symbol_entry_value == "P" or symbol_entry_value == "PORTFOLIO" or symbol_entry_value == "PORTFOLIO VALUE" or symbol_entry_value == "VALUE":
+    if symbol_entry_value == "PORTFOLIO VALUE":
         new_symbol = "PORTFOLIO"
-    if symbol_entry_value not in symbol_list:
-        showerror(title="Create Alert", message="Symbol not in portfolio")
-        return
     else:
         new_symbol = symbol_entry_value
     new_alert = {
@@ -1476,9 +1495,9 @@ def remove_alert():
     alerts = json.load(open("Settings/alerts.json", "r"))
     for alert in alerts:
         if alert["tresh"] == "Rises Above":
-            current_alerts.append(f"{alert["symbol"]} | >${alert["target-price"]}")
+            current_alerts.append(f"{alert["symbol"]} | ≥${alert["target-price"]}")
         else:
-            current_alerts.append(f"{alert["symbol"]} | <${alert["target-price"]}")
+            current_alerts.append(f"{alert["symbol"]} | ≤${alert["target-price"]}")
     alerts_selection_label = ttk.Label(remove_alert_window, text="Select One")
     alerts_selection_label.pack(padx=5, pady=5)
     alerts_dropdown = ttk.Combobox(remove_alert_window, state="readonly", values=current_alerts, width=25)
@@ -1525,10 +1544,12 @@ def edit_holdings_file():
 def portfolio_summary():
     global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label
     root.after_cancel(refresh_interval)
-    table_frame.destroy()
-    stats_frame.destroy()
-    actions_frame.destroy()
-    last_refreshed_text.destroy()
+    try:
+        for child in root.winfo_children():
+            child.destroy()
+        pass
+    except Exception:
+        pass
     root.geometry("1100x535")
     summary_window_title = ttk.Label(root, text="Portfolio Summary", font=("Helvetica", 30))
     summary_window_title.grid(row=0, column=1, padx=5, pady=5)
@@ -1822,15 +1843,15 @@ def portfolio_sector_allocation():
                 stock = portfolio.get_security_by_symbol(security.symbol)
                 values.append(stock.current_value)
         sector_list.insert("", "end", text="", values=(
-        key.replace(" ", ": "), "", round(sum(values), 2), round((value / len(portfolio.securities)) * 100, 2)),
+            key.replace(" ", ": "), "", round(sum(values), 2), round((value / len(portfolio.securities)) * 100, 2)),
                            iid=key)
     sector_list.grid(padx=5, pady=5, column=0, row=1)
     for key, values in stocks_in_sector.items():
         for value in values:
             stock = portfolio.get_security_by_symbol(value)
             sector_list.insert(key, "end", text="", values=(
-            "     " + value, stock.shares, round(stock.current_value, 2),
-            round((stock.current_value / portfolio.total_value) * 100, 2)))
+                "     " + value, stock.shares, round(stock.current_value, 2),
+                round((stock.current_value / portfolio.total_value) * 100, 2)))
     tool_frame = ttk.Frame(sector_window)
     pie_chart_button = ttk.Button(tool_frame, text="Allocation Pie Chart",
                                   command=lambda: sector_allocation_pie_chart(list_of_sectors))
@@ -1936,6 +1957,10 @@ def country_allocation_pie_chart(country_list):
     return
 
 
+def is_weekend(today):
+    return today.weekday() in [5, 6]
+
+
 def eod_summary():
     today = date.today().strftime("%Y-%m-%d")
     if os.path.exists("last-summary-date.txt"):
@@ -1943,6 +1968,9 @@ def eod_summary():
             stored_date = file.read().strip()
         if stored_date != today:
             now = datetime.now(pytz.timezone('US/Eastern'))
+            if is_weekend(now):
+                print("Weekend: No market summary available.")
+                return
             close_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
             if close_time < now:
                 print("Showing eod summary")
@@ -1963,10 +1991,12 @@ def eod_summary():
 def show_daily_summary():
     global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label
     root.after_cancel(refresh_interval)
-    table_frame.destroy()
-    stats_frame.destroy()
-    actions_frame.destroy()
-    last_refreshed_text.destroy()
+    try:
+        for child in root.winfo_children():
+            child.destroy()
+        pass
+    except Exception:
+        pass
     root.geometry("800x500")
     today = date.today().strftime("%Y-%m-%d")
     summary_window_title = ttk.Label(root, text="Daily Portfolio Summary", font=("Helvetica", 30))
@@ -2073,11 +2103,12 @@ def quit_app(event):
     sys.exit(0)
 
 
+print("Starting...")
 portfolio = Portfolio()
 assistant = Assistant()
 root = tk.Tk()
 root.title("Stonks 📈")
-root.geometry("1625x600")
+root.geometry("1500x525")
 root.protocol("WM_DELETE_WINDOW", lambda: quit_app(None))
 root.bind("<r>", restart_app)
 root.bind("<Escape>", quit_app)
@@ -2131,6 +2162,7 @@ table_frame = ttk.LabelFrame(root, text="Holdings")
 stats_frame = ttk.Frame(root)
 launch_time = time.strftime('%l:%M:%S')
 last_refreshed_text = ttk.Label(root, text=f"↻ {launch_time}", font=("Helvetica", 15))
+portfolio_frame = ttk.Frame(root)
 actions_frame = ttk.Frame(root)
 table = ttk.Treeview(table_frame, columns=(
     "Symbol", "Name", "Price", "Shares", "Value", "Cost/Share", "Total $", "Total %",
