@@ -198,6 +198,8 @@ class Assistant:
             ("next dividends", "next-dividends"),
             ("dividend calendar", "next-dividends"),
             ("dividends today", "next-dividends"),
+            ("next dividend for this", "next-dividends"),
+            ("upcoming stock dividend", "next-dividends"),
             ("dividends coming up", "next-dividends"),
             ("dividend payouts today", "next-dividends"),
             ("time left in day", "close-time"),
@@ -231,6 +233,7 @@ class Assistant:
             ("what do i make from dividends", "dividend-yield"),
             ("dividend yields", "dividend-yield"),
             ("dividend returns", "dividend-yield"),
+            ("amount i make from dividends", "dividend-yield"),
             ("time left in quarter", "quarter-time"),
             ("when does quarter end", "quarter-time"),
             ("quarter time", "quarter-time"),
@@ -394,7 +397,13 @@ class Assistant:
             response = "Here is your country allocation"
             portfolio_country_allocation()
         if tag == "next-dividends":
-            pass  # TODO
+            symbol_pattern = r"\b[A-Z]{2,5}\b"
+            match = re.search(symbol_pattern, prompt)
+            if match:
+                symbol = match.group()
+                pass  # TODO get next dividend for symbol
+            else:
+                pass  # TODO get next dividend in portfolio
         if tag == "close-time":
             now = datetime.now(pytz.timezone('US/Eastern'))
             if now.weekday() in [5, 6]:
@@ -407,16 +416,27 @@ class Assistant:
                     time_delta = close_time - now
                     hours, minutes, seconds = time_delta.seconds // 3600, (
                             time_delta.seconds // 60) % 60, time_delta.seconds % 60
-                    response = f"Market closes in {hours} hours, {minutes} minutes, {seconds} seconds"
+                    output_parts = []
+                    if hours > 0:
+                        output_parts.append(f"{hours} hours")
+                    if minutes > 0:
+                        output_parts.append(f"{minutes} minutes")
+                    if seconds > 0:
+                        output_parts.append(f"{seconds} seconds")
+                    response = f"Market closes in {', '.join(output_parts)}."
         if tag == "open-time":
             now = datetime.now(pytz.timezone('US/Eastern'))
             if now.weekday() in [5, 6]:
-                next_open_day = (7 - now.weekday()) % 7
-                open_time = now.replace(hour=9, minute=30, second=0, microsecond=0) + timedelta(days=next_open_day)
-                time_delta = open_time - now
-                hours, minutes, seconds = time_delta.seconds // 3600, (
-                        time_delta.seconds // 60) % 60, time_delta.seconds % 60
-                response = f"Market opens on Monday in {hours} hours, {minutes} minutes, {seconds} seconds."
+                days_until_monday = (7 - now.weekday()) % 7
+                next_monday = now + timedelta(days=days_until_monday)
+                market_open_timezone = pytz.timezone('America/New_York')
+                market_open_time = market_open_timezone.localize(
+                    datetime(next_monday.year, next_monday.month, next_monday.day, 9, 30))
+                time_difference = market_open_time - now
+                days = time_difference.days
+                hours, remainder = divmod(time_difference.seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
+                response = f"Market opens in {days} days, {hours} hours, {minutes} minutes, and {seconds} seconds."
             else:
                 open_time = now.replace(hour=9, minute=30, second=0, microsecond=0)
                 close_time = now.replace(hour=16, minute=0, second=0, microsecond=0)
@@ -429,7 +449,14 @@ class Assistant:
                     time_delta = open_time - now
                     hours, minutes, seconds = time_delta.seconds // 3600, (
                             time_delta.seconds // 60) % 60, time_delta.seconds % 60
-                    response = f"Market opens in {hours} hours, {minutes} minutes, {seconds} seconds"
+                    output_parts = []
+                    if hours > 0:
+                        output_parts.append(f"{hours} hours")
+                    if minutes > 0:
+                        output_parts.append(f"{minutes} minutes")
+                    if seconds > 0:
+                        output_parts.append(f"{seconds} seconds")
+                    response = f"Market opens in {', '.join(output_parts)}."
         if tag == "help":
             response = ("I am your portfolio tracker assistant. I can help you quickly get what you need to know. Try "
                         "asking me something about your portfolio data")
@@ -1446,7 +1473,8 @@ def create_alert():
     price_entry.pack(padx=5, pady=5)
     tresh_dropdown_label = ttk.Label(create_alert_window, text="Type")
     tresh_dropdown_label.pack(padx=5, pady=5)
-    tresh_dropdown = ttk.Combobox(create_alert_window, width=25, state="readonly", values=["Rises Above", "Falls Below"])
+    tresh_dropdown = ttk.Combobox(create_alert_window, width=25, state="readonly",
+                                  values=["Rises Above", "Falls Below"])
     tresh_dropdown.pack(padx=5, pady=5)
     create_alert_wait_var = tk.IntVar()
     create_button = ttk.Button(create_alert_window, text="Create Alert", style="Accent.TButton",
@@ -1762,7 +1790,6 @@ def save_portfolio_summary():
     output += "Symbol | Shares | Invested | Avg Cost/Share\n"
     for stock in portfolio.securities:
         output += f"{stock.symbol} | {round(stock.shares, 3)} | ${round(stock.initial_value, 2)} | ${round(stock.avg_price, 2)}\n"
-    # TODO add dividend info
     with open(filename, "w") as file:
         file.write(output)
         file.close()
