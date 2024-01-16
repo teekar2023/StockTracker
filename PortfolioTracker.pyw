@@ -946,11 +946,11 @@ def load_app():
     for alert in alerts_json:
         if alert not in triggered_alerts:
             new_alerts.append(alert)
-    alerts_object = json.dumps(new_alerts, indent=4)
+    new_alerts_object = json.dumps(new_alerts, indent=4)
     alerts_file = open("Settings/alerts.json", "w+")
     alerts_file.truncate(0)
     with alerts_file as outfile:
-        outfile.write(alerts_object)
+        outfile.write(new_alerts_object)
         alerts_file.close()
         pass
     print("Alert check complete")
@@ -1598,9 +1598,9 @@ def remove_alert():
     alerts = json.load(open("Settings/alerts.json", "r"))
     for alert in alerts:
         if alert["tresh"] == "Rises Above":
-            current_alerts.append(f"{alert["symbol"]} | ≥${alert["target-price"]}")
+            current_alerts.append(f"{alert["symbol"]} | >=${alert["target-price"]}")
         else:
-            current_alerts.append(f"{alert["symbol"]} | ≤${alert["target-price"]}")
+            current_alerts.append(f"{alert["symbol"]} | <=${alert["target-price"]}")
     alerts_selection_label = ttk.Label(remove_alert_window, text="Select One")
     alerts_selection_label.pack(padx=5, pady=5)
     alerts_dropdown = ttk.Combobox(remove_alert_window, state="readonly", values=current_alerts, width=25)
@@ -1615,16 +1615,16 @@ def remove_alert():
     new_alerts = []
     for alert in alerts:
         if alert["tresh"] == "Rises Above":
-            search_alert = f"{alert["symbol"]} | >${alert["target-price"]}"
+            search_alert = f"{alert["symbol"]} | >=${alert["target-price"]}"
         else:
-            search_alert = f"{alert["symbol"]} | <${alert["target-price"]}"
+            search_alert = f"{alert["symbol"]} | <=${alert["target-price"]}"
         if search_alert != selected_alert:
             new_alerts.append(alert)
-    alerts_object = json.dumps(new_alerts, indent=4)
+    new_alerts_object = json.dumps(new_alerts, indent=4)
     alerts_file = open("Settings/alerts.json", "w+")
     alerts_file.truncate(0)
     with alerts_file as outfile:
-        outfile.write(alerts_object)
+        outfile.write(new_alerts_object)
         alerts_file.close()
         pass
     root.iconify()

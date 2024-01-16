@@ -6,12 +6,22 @@
     },
     {
         "symbol": "PORTFOLIO",
-        "target-price": 1225.0,
-        "tresh": "Falls Below"
+        "target-price": 1300.0,
+        "tresh": "Rises Above"
     },
     {
         "symbol": "PORTFOLIO",
-        "target-price": 1300.0,
+        "target-price": 1250.0,
+        "tresh": "Rises Above"
+    },
+    {
+        "symbol": "PORTFOLIO",
+        "target-price": 1235.0,
+        "tresh": "Falls Below"
+    },
+    {
+        "symbol": "NVDA",
+        "target-price": 600.0,
         "tresh": "Rises Above"
     }
 ]
