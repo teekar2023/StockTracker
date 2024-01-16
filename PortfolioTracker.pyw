@@ -77,6 +77,8 @@ class Stock:
 class Portfolio:
     def __init__(self):
         self.securities = []
+        self.sort_type = "none"
+        self.sorted_securities = []
         self.total_value = 0.0
         self.total_abs_gain = 0.0
         self.total_rel_gain = 0.0
@@ -108,8 +110,30 @@ class Portfolio:
 
     def add_security(self, security: Stock):
         self.securities.append(security)
+        self.sort_portfolio()
         self.total_value += round(security.current_value, 2)
         self.calculate_total_gain()
+        return
+
+    def sort_portfolio(self):
+        if self.sort_type == "none":
+            self.sorted_securities = self.securities
+        if self.sort_type == "value":
+            self.sorted_securities = sorted(self.securities, key=lambda x: x.current_value, reverse=True)
+        if self.sort_type == "total":
+            self.sorted_securities = sorted(self.securities, key=lambda x: x.absolute_gain, reverse=True)
+        if self.sort_type == "day":
+            self.sorted_securities = sorted(self.securities, key=lambda x: x.daily_abs_gain, reverse=True)
+        if self.sort_type == "price":
+            self.sorted_securities = sorted(self.securities, key=lambda x: x.current_price, reverse=True)
+        if self.sort_type == "shares":
+            self.sorted_securities = sorted(self.securities, key=lambda x: x.shares, reverse=True)
+        if self.sort_type == "cost":
+            self.sorted_securities = sorted(self.securities, key=lambda x: x.avg_price, reverse=True)
+        if self.sort_type == "total%":
+            self.sorted_securities = sorted(self.securities, key=lambda x: x.relative_gain, reverse=True)
+        if self.sort_type == "day%":
+            self.sorted_securities = sorted(self.securities, key=lambda x: x.daily_rel_gain, reverse=True)
         return
 
     def get_security_by_symbol(self, symbol: str):
@@ -617,7 +641,9 @@ def launch_assistant(event):
     send_button.pack(side=tk.RIGHT, padx=10, pady=5)
 
     list_of_prompts = ["How can I help?", "What do you need?", "Got a question about your portfolio?",
-                       "What can I do for you?", "Do you have a question for me?", "Anything I can help with?"]
+                       "What can I do for you?", "Do you have a question for me?", "Anything I can help with?",
+                       "What's the word?", "How can I be of service?", "What can I do for you today?",
+                       "Need assistance?"]
     chat_text.insert(tk.END, random.choice(list_of_prompts) + "\n\n")
     chat_text.config(state="disabled")
     assistant_window.protocol("WM_DELETE_WINDOW", update_main_window)
@@ -670,7 +696,7 @@ def update_main_window():
     table.heading("Total %", text="Total %")
     table.heading("Day $", text="Day $")
     table.heading("Day %", text="Day %")
-    for stock in portfolio.securities:
+    for stock in portfolio.sorted_securities:
         table.insert("", tk.END, values=[stock.symbol, stock.name, round(stock.current_price, 2), stock.shares,
                                          round(stock.current_value, 2), stock.avg_price,
                                          round(stock.absolute_gain, 2), round(stock.relative_gain, 2),
@@ -686,6 +712,8 @@ def update_main_window():
     table.column("#8", width=115)
     table.column("#9", width=115)
     table.column("#10", width=115)
+    for col in table["columns"]:
+        table.heading(col, text=col, command=lambda c=col: sort_handler(c))
     stats_frame = ttk.Frame(root)
     daily_text = ""
     now = datetime.now(pytz.timezone('US/Eastern'))
@@ -817,7 +845,7 @@ def load_app():
     table.heading("Total %", text="Total %")
     table.heading("Day $", text="Day $")
     table.heading("Day %", text="Day %")
-    for stock in portfolio.securities:
+    for stock in portfolio.sorted_securities:
         table.insert("", tk.END, values=[stock.symbol, stock.name, round(stock.current_price, 2), stock.shares,
                                          round(stock.current_value, 2), stock.avg_price,
                                          round(stock.absolute_gain, 2), round(stock.relative_gain, 2),
@@ -833,6 +861,8 @@ def load_app():
     table.column("#8", width=115)
     table.column("#9", width=115)
     table.column("#10", width=115)
+    for col in table["columns"]:
+        table.heading(col, text=col, command=lambda c=col: sort_handler(c))
     portfolio.calculate_total_gain()
     daily_text = ""
     now = datetime.now(pytz.timezone('US/Eastern'))
@@ -926,6 +956,52 @@ def load_app():
     print("Alert check complete")
     if settings_json['eod-summary'] == 1:
         eod_summary()
+    return
+
+
+def sort_handler(event):
+    global table
+    print(f"Sorting by: {event}")
+    if event == "Price":
+        portfolio.sort_type = "price"
+        portfolio.sort_portfolio()
+        table.delete(*table.get_children())
+    if event == "Shares":
+        portfolio.sort_type = "shares"
+        portfolio.sort_portfolio()
+        table.delete(*table.get_children())
+    if event == "Value":
+        portfolio.sort_type = "value"
+        portfolio.sort_portfolio()
+        table.delete(*table.get_children())
+    if event == "Cost/Share":
+        portfolio.sort_type = "cost"
+        portfolio.sort_portfolio()
+        table.delete(*table.get_children())
+    if event == "Total $":
+        portfolio.sort_type = "total"
+        portfolio.sort_portfolio()
+        table.delete(*table.get_children())
+    if event == "Total %":
+        portfolio.sort_type = "total%"
+        portfolio.sort_portfolio()
+        table.delete(*table.get_children())
+    if event == "Day $":
+        portfolio.sort_type = "day"
+        portfolio.sort_portfolio()
+        table.delete(*table.get_children())
+    if event == "Day %":
+        portfolio.sort_type = "day%"
+        portfolio.sort_portfolio()
+        table.delete(*table.get_children())
+    for stock in portfolio.sorted_securities:
+        table.insert("", tk.END, values=[stock.symbol, stock.name, round(stock.current_price, 2), stock.shares,
+                                         round(stock.current_value, 2), stock.avg_price,
+                                         round(stock.absolute_gain, 2), round(stock.relative_gain, 2),
+                                         round(stock.daily_abs_gain, 2), round(stock.daily_rel_gain, 2)])
+    root.deiconify()
+    table.update()
+    root.update()
     return
 
 
@@ -1402,7 +1478,6 @@ def app_settings():
                                               offvalue=0)
     eod_summary_checkbutton.pack(padx=5, pady=5)
     other_frame.grid(padx=5, pady=5, column=1, row=1)
-    settings_json = json.load(open("Settings/settings.json", "r"))
     if settings_json["dark-mode"] == 1:
         dark_mode_var.set(1)
     if settings_json["eod-summary"] == 1:
@@ -2144,9 +2219,10 @@ if not os.path.exists("Settings/"):
     os.mkdir("Settings")
 if not os.path.exists("Settings/settings.json"):
     settings = {
-        "refresh-interval": 7,
+        "refresh-interval": 10,
         "dark-mode": 1,
-        "eod-summary": 1
+        "eod-summary": 1,
+        "sorted-table": 1
     }
     settings_object = json.dumps(settings, indent=4)
     with open("Settings/settings.json", "w+") as sf:
@@ -2168,7 +2244,7 @@ if os.path.exists("portfolio-holdings.csv"):
     loading_label.pack(pady=150)
     loading_messages = ["Loading Portfolio...", "Downloading Market Info...", "Planting Money Tree...",
                         "Brewing Profit Potion...", "Getting Data...", "Fetching Holdings...",
-                        "Worshipping Investment Gods...", "Building Database...", "One Moment..."]
+                        "Worshipping Investment Gods...", "Building Database...", "One Moment...", "Please Wait..."]
     other_loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 15))
     other_loading_label.pack()
     loading_bar = ttk.Progressbar(root, orient="horizontal", length=500, mode="determinate")
