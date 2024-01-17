@@ -4,6 +4,7 @@ import webbrowser
 import os
 import sys
 import re
+import time
 from tkinter import ttk, filedialog
 from tkinter.messagebox import askyesno, showinfo, showerror
 from tkinter.simpledialog import askstring
@@ -19,7 +20,8 @@ try:
     from sklearn.model_selection import GridSearchCV
     from sklearn.svm import SVC
 except Exception as e:
-    print(f"Error importing modules: {e}\n\nAttempting to install all dependencies...")
+    print(f"Error importing modules: {e}\n\nAttempting to install all dependencies...\n\n")
+    time.sleep(1.5)
     os.system("pip3 install pandas")
     os.system("pip3 install yfinance")
     os.system("pip3 install sv-ttk")
@@ -27,7 +29,6 @@ except Exception as e:
     os.system("pip3 install nltk")
     os.system("pip3 install scikit-learn")
     os.execv(sys.executable, [sys.executable] + sys.argv)
-import time
 import json
 from datetime import datetime, date, timedelta
 import subprocess
@@ -134,6 +135,10 @@ class Portfolio:
             self.sorted_securities = sorted(self.securities, key=lambda x: x.relative_gain, reverse=True)
         if self.sort_type == "day%":
             self.sorted_securities = sorted(self.securities, key=lambda x: x.daily_rel_gain, reverse=True)
+        if self.sort_type == "symbol":
+            self.sorted_securities = sorted(self.securities, key=lambda x: x.symbol, reverse=False)
+        if self.sort_type == "name":
+            self.sorted_securities = sorted(self.securities, key=lambda x: x.name, reverse=False)
         return
 
     def get_security_by_symbol(self, symbol: str):
@@ -886,22 +891,20 @@ def load_app():
     log_sell_button.grid(column=1, row=0, padx=5, pady=5)
     edit_file_button = ttk.Button(portfolio_frame, text="✏️ Edit", command=edit_holdings_file)
     edit_file_button.grid(column=2, row=0, padx=5, pady=5)
-    analysis_tools_label = ttk.Label(actions_frame, text="Tools", font=("Helvetica", 18))
-    analysis_tools_label.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
     assistant_button = ttk.Button(actions_frame, text="🤖 Assistant", command=lambda: launch_assistant(None))
-    assistant_button.grid(column=0, row=1, padx=5, pady=5)
+    assistant_button.grid(column=0, row=0, padx=5, pady=5)
     summary_button = ttk.Button(actions_frame, text="📊 Summary", command=portfolio_summary)
-    summary_button.grid(column=1, row=1, padx=5, pady=5)
+    summary_button.grid(column=1, row=0, padx=5, pady=5)
     search_button = ttk.Button(actions_frame, text="🔎 Discover", command=search_stock)
-    search_button.grid(column=0, row=2, padx=5, pady=5)
+    search_button.grid(column=0, row=1, padx=5, pady=5)
     dividend_tracker_button = ttk.Button(actions_frame, text="💲 Dividend", command=dividend_tracker)
-    dividend_tracker_button.grid(column=1, row=2, padx=5, pady=5)
+    dividend_tracker_button.grid(column=1, row=1, padx=5, pady=5)
     benchmark_tool_button = ttk.Button(actions_frame, text="📈 Compare", command=benchmark_portfolio_performance)
-    benchmark_tool_button.grid(column=0, row=3, padx=5, pady=5)
+    benchmark_tool_button.grid(column=0, row=2, padx=5, pady=5)
     settings_button = ttk.Button(actions_frame, text="⚙️ Settings", command=app_settings)
-    settings_button.grid(column=1, row=3, padx=5, pady=5)
+    settings_button.grid(column=1, row=2, padx=5, pady=5)
     quit_button = ttk.Button(actions_frame, text="❌", command=lambda: quit_app(None))
-    quit_button.grid(column=0, row=4, padx=5, pady=5, columnspan=2)
+    quit_button.grid(column=0, row=3, padx=5, pady=5, columnspan=2)
     stats_frame.grid(padx=10, pady=10, column=0, row=0)
     table.pack(padx=5, pady=5)
     table_frame.grid(padx=10, pady=10, column=0, row=1)
@@ -992,6 +995,14 @@ def sort_handler(event):
         table.delete(*table.get_children())
     if event == "Day %":
         portfolio.sort_type = "day%"
+        portfolio.sort_portfolio()
+        table.delete(*table.get_children())
+    if event == "Symbol":
+        portfolio.sort_type = "symbol"
+        portfolio.sort_portfolio()
+        table.delete(*table.get_children())
+    if event == "Name":
+        portfolio.sort_type = "name"
         portfolio.sort_portfolio()
         table.delete(*table.get_children())
     for stock in portfolio.sorted_securities:
@@ -2221,8 +2232,7 @@ if not os.path.exists("Settings/settings.json"):
     settings = {
         "refresh-interval": 10,
         "dark-mode": 1,
-        "eod-summary": 1,
-        "sorted-table": 1
+        "eod-summary": 1
     }
     settings_object = json.dumps(settings, indent=4)
     with open("Settings/settings.json", "w+") as sf:
@@ -2244,7 +2254,8 @@ if os.path.exists("portfolio-holdings.csv"):
     loading_label.pack(pady=150)
     loading_messages = ["Loading Portfolio...", "Downloading Market Info...", "Planting Money Tree...",
                         "Brewing Profit Potion...", "Getting Data...", "Fetching Holdings...",
-                        "Worshipping Investment Gods...", "Building Database...", "One Moment...", "Please Wait..."]
+                        "Worshipping Investment Gods...", "Building Database...", "One Moment...", "Please Wait...",
+                        "Connecting to Yahoo Finance...", "Observing Market Trends...", "Traveling to Wall Street..."]
     other_loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 15))
     other_loading_label.pack()
     loading_bar = ttk.Progressbar(root, orient="horizontal", length=500, mode="determinate")
