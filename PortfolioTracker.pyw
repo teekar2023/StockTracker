@@ -416,9 +416,17 @@ class Assistant:
                 else:
                     response = f"You have made a total return of ${portfolio.total_abs_gain} or {portfolio.total_rel_gain}% on your investments"
         if tag == "best-stocks":
-            pass  # TODO
+            portfolio.sort_type = "total%"
+            portfolio.sort_portfolio()
+            response = "Here are your best performing positions\n"
+            for stock in portfolio.sorted_securities[:5]:
+                response += f"\n{stock.symbol} - {stock.name} - {round(stock.relative_gain, 2)}%"
         if tag == "worst-stocks":
-            pass  # TODO
+            portfolio.sort_type = "total%"
+            portfolio.sort_portfolio()
+            response = "Here are your worst performing positions\n"
+            for stock in portfolio.sorted_securities[-5:]:
+                response += f"\n{stock.symbol} - {stock.name} - {round(stock.relative_gain, 2)}%"
         if tag == "sector-allocation":
             response = "Here is your sector allocation"
             portfolio_sector_allocation()
@@ -430,9 +438,23 @@ class Assistant:
             match = re.search(symbol_pattern, prompt)
             if match:
                 symbol = match.group()
-                pass  # TODO get next dividend for symbol
+                try:
+                    tinfo = yf.Ticker(symbol).info
+                    if "dividendRate" in tinfo:
+                        ex_date = tinfo['exDividendDate']
+                        ex_date = datetime.fromtimestamp(ex_date).strftime('%Y-%m-%d')
+                        response = f"Ex-Dividend date for {symbol} is {ex_date}"
+                except Exception as e:
+                    response = f"Error getting dividend data: {e}"
             else:
-                pass  # TODO get next dividend in portfolio
+                response = "Here are your upcoming dividends\n"
+                for security in portfolio.securities:
+                    tinfo = yf.Ticker(security.symbol).info
+                    if "dividendRate" in tinfo:
+                        ex_date = tinfo['exDividendDate']
+                        ex_date = datetime.fromtimestamp(ex_date).strftime('%Y-%m-%d')
+                        response += f"\n{security.symbol} - {security.name} - {ex_date}"
+                pass
         if tag == "close-time":
             now = datetime.now(pytz.timezone('US/Eastern'))
             if now.weekday() in [5, 6]:
@@ -493,7 +515,25 @@ class Assistant:
             response = "GitHub Repository was opened in browser"
             webbrowser.open("https://github.com/teekar2023/StockTracker/")
         if tag == "dividend-yield":
-            pass  # TODO
+            weight_list = []
+            yield_list = []
+            for security in portfolio.securities:
+                tinfo = yf.Ticker(security.symbol).info
+                weight = security.current_value / portfolio.total_value
+                if "dividendYield" in tinfo:
+                    weight_list.append(weight)
+                    yield_list.append(tinfo['dividendYield'])
+                else:
+                    weight_list.append(weight)
+                    yield_list.append(0.0)
+            total_div_yield = 0.0
+            for i in range(len(weight_list)):
+                div_yield = yield_list[i]
+                weight = weight_list[i]
+                weighted_yield = div_yield * weight
+                total_div_yield += weighted_yield
+            total_div_yield *= 100
+            response = f"Your portfolio's weighted dividend yield is {round(total_div_yield, 2)}%"
         if tag == "quarter-time":
             today = datetime.date(datetime.now())
             quarter_end = get_current_fiscal_quarter_end(10)
@@ -744,22 +784,20 @@ def update_main_window():
     log_sell_button.grid(column=1, row=0, padx=5, pady=5)
     edit_file_button = ttk.Button(portfolio_frame, text="✏️ Edit", command=edit_holdings_file)
     edit_file_button.grid(column=2, row=0, padx=5, pady=5)
-    analysis_tools_label = ttk.Label(actions_frame, text="Tools", font=("Helvetica", 18))
-    analysis_tools_label.grid(row=0, column=0, columnspan=2, padx=5, pady=5)
     assistant_button = ttk.Button(actions_frame, text="🤖 Assistant", command=lambda: launch_assistant(None))
-    assistant_button.grid(column=0, row=1, padx=5, pady=5)
+    assistant_button.grid(column=0, row=0, padx=5, pady=5)
     summary_button = ttk.Button(actions_frame, text="📊 Summary", command=portfolio_summary)
-    summary_button.grid(column=1, row=1, padx=5, pady=5)
+    summary_button.grid(column=1, row=0, padx=5, pady=5)
     search_button = ttk.Button(actions_frame, text="🔎 Discover", command=search_stock)
-    search_button.grid(column=0, row=2, padx=5, pady=5)
+    search_button.grid(column=0, row=1, padx=5, pady=5)
     dividend_tracker_button = ttk.Button(actions_frame, text="💲 Dividend", command=dividend_tracker)
-    dividend_tracker_button.grid(column=1, row=2, padx=5, pady=5)
+    dividend_tracker_button.grid(column=1, row=1, padx=5, pady=5)
     benchmark_tool_button = ttk.Button(actions_frame, text="📈 Compare", command=benchmark_portfolio_performance)
-    benchmark_tool_button.grid(column=0, row=3, padx=5, pady=5)
+    benchmark_tool_button.grid(column=0, row=2, padx=5, pady=5)
     settings_button = ttk.Button(actions_frame, text="⚙️ Settings", command=app_settings)
-    settings_button.grid(column=1, row=3, padx=5, pady=5)
+    settings_button.grid(column=1, row=2, padx=5, pady=5)
     quit_button = ttk.Button(actions_frame, text="❌", command=lambda: quit_app(None))
-    quit_button.grid(column=0, row=4, padx=5, pady=5, columnspan=2)
+    quit_button.grid(column=0, row=3, padx=5, pady=5, columnspan=2)
     stats_frame.grid(padx=10, pady=10, column=0, row=0)
     table.pack(padx=5, pady=5)
     table_frame.grid(padx=10, pady=10, column=0, row=1)
