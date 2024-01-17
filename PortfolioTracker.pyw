@@ -1398,7 +1398,26 @@ def stock_graphs(stock: Stock):
 
 
 def stock_news(stock: Stock):
-    return  # TODO
+    news_window = tk.Toplevel(root)
+    news_window.geometry("900x700")
+    news_window.title("Stock News")
+    news_window_title = ttk.Label(news_window, text=f"{stock.name} News")
+    news_window_title.pack(padx=5, pady=5)
+    news_frame = ttk.Frame(news_window)
+    news_frame.pack(padx=5, pady=5)
+    news = yf.Ticker(stock.symbol).news
+    for article in news:
+        article_title = article['title']
+        article_url = article['link']
+        article_source = article['publisher']
+        article_frame = ttk.LabelFrame(news_frame, text=article_url)
+        article_frame.pack(padx=5, pady=5)
+        article_source_label = ttk.Label(article_frame, text=f"{article_title}")
+        article_source_label.pack(padx=5, pady=5)
+        article_url_label = ttk.Label(article_frame, text=f"Source: {article_source}")
+        article_url_label.pack(padx=5, pady=5)
+        article_frame.bind("<Button-1>", lambda e: webbrowser.open(article_url))
+    return
 
 
 def stock_earnings(stock: Stock):
@@ -1928,26 +1947,6 @@ def save_portfolio_summary():
 
 
 def portfolio_etf_allocation():
-    list_of_etfs = {}
-    list_of_holdings = {}
-    for stock in portfolio.securities:
-        tinfo = yf.Ticker(stock.symbol).info
-        try:
-            etf = tinfo['category']
-            pass
-        except Exception:
-            continue
-        if stock.symbol not in list_of_etfs.keys():
-            list_of_etfs[f'{stock.symbol}'] = etf
-            list_of_holdings[f'{stock.symbol}'] = [stock.symbol]
-        else:
-            for key, value in list_of_etfs.items():
-                if key == stock.symbol:
-                    list_of_etfs[f'{stock.symbol}'] = etf
-                    list_of_holdings[f'{stock.symbol}'].append(stock.symbol)
-        # TODO filter etfs and get holdings
-    print(list_of_etfs)
-    print(list_of_holdings)
     # TODO
     return
 
@@ -2294,7 +2293,7 @@ if os.path.exists("portfolio-holdings.csv"):
                         "Brewing Profit Potion...", "Getting Data...", "Fetching Holdings...",
                         "Worshipping Investment Gods...", "Building Database...", "One Moment...", "Please Wait...",
                         "Connecting to Yahoo Finance...", "Observing Market Trends...", "Traveling to Wall Street..."]
-    other_loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 15))
+    other_loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 16))
     other_loading_label.pack()
     loading_bar = ttk.Progressbar(root, orient="horizontal", length=500, mode="determinate")
     loading_bar.pack(pady=10)
