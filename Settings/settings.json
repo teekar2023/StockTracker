@@ -1,5 +1,6 @@
 {
     "refresh-interval": 5,
     "dark-mode": 1,
-    "eod-summary": 1
+    "eod-summary": 1,
+    "default-sort": "value"
 }

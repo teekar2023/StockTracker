@@ -741,6 +741,8 @@ def update_main_window():
     table.heading("Total %", text="Total %")
     table.heading("Day $", text="Day $")
     table.heading("Day %", text="Day %")
+    portfolio.sort_type = settings_json["default-sort"]
+    portfolio.sort_portfolio()
     for stock in portfolio.sorted_securities:
         table.insert("", tk.END, values=[stock.symbol, stock.name, round(stock.current_price, 2), stock.shares,
                                          round(stock.current_value, 2), stock.avg_price,
@@ -888,6 +890,8 @@ def load_app():
     table.heading("Total %", text="Total %")
     table.heading("Day $", text="Day $")
     table.heading("Day %", text="Day %")
+    portfolio.sort_type = settings_json["default-sort"]
+    portfolio.sort_portfolio()
     for stock in portfolio.sorted_securities:
         table.insert("", tk.END, values=[stock.symbol, stock.name, round(stock.current_price, 2), stock.shares,
                                          round(stock.current_value, 2), stock.avg_price,
@@ -1558,6 +1562,12 @@ def app_settings():
     dark_mode_checkbutton = ttk.Checkbutton(customization_frame, text="Dark Mode", variable=dark_mode_var, onvalue=1,
                                             offvalue=0)
     dark_mode_checkbutton.pack(padx=5, pady=5)
+    sort_list = ["price", "shares", "value", "cost", "total$", "total%", "day$", "day%", "symbol", "name"]
+    sort_dropdown_label = ttk.Label(customization_frame, text="Default Sort")
+    default_sort_var = tk.StringVar()
+    sort_dropdown_label.pack(padx=5, pady=5)
+    sort_dropdown = ttk.Combobox(customization_frame, width=5, state="readonly", values=sort_list, textvariable=default_sort_var)
+    sort_dropdown.pack(padx=5, pady=5)
     customization_frame.grid(padx=5, pady=5, column=0, row=1)
     other_frame = ttk.LabelFrame(root, text="Other")
     refresh_interval_label = ttk.Label(other_frame, text="Refresh Interval (Seconds)")
@@ -1575,6 +1585,7 @@ def app_settings():
         dark_mode_var.set(1)
     if settings_json["eod-summary"] == 1:
         eod_summary_var.set(1)
+    default_sort_var.set(settings_json["default-sort"])
     refresh_interval_entry.insert(tk.END, settings_json["refresh-interval"])
     alerts_frame = ttk.LabelFrame(root, text="Alerts")
     list_of_alerts_string = "-----Current Alerts-----\n"
@@ -1603,7 +1614,8 @@ def app_settings():
     new_settings = {
         "refresh-interval": int(refresh_interval_entry.get()),
         "dark-mode": dark_mode_var.get(),
-        "eod-summary": eod_summary_var.get()
+        "eod-summary": eod_summary_var.get(),
+        "default-sort": default_sort_var.get()
     }
     settings_window_title.destroy()
     customization_frame.destroy()
@@ -2294,7 +2306,8 @@ if not os.path.exists("Settings/settings.json"):
     settings = {
         "refresh-interval": 10,
         "dark-mode": 1,
-        "eod-summary": 1
+        "eod-summary": 1,
+        "default-sort": "none"
     }
     settings_object = json.dumps(settings, indent=4)
     with open("Settings/settings.json", "w+") as sf:
