@@ -1394,7 +1394,32 @@ def search_stock(symbol_input=None):
 
 
 def stock_graphs(stock: Stock):
-    return  # TODO
+    graph_window = tk.Toplevel(root)
+    graph_window.geometry("300x150")
+    graph_window.title("Stock Graphs")
+    graph_window_title = ttk.Label(graph_window, text=f"{stock.name} ({stock.symbol})")
+    graph_window_title.pack(padx=5, pady=5)
+    graph_frame = ttk.Frame(graph_window)
+    graph_frame.pack(padx=5, pady=5)
+    period_options = ["1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"]
+    selected_period = tk.StringVar()
+    selected_period.set(period_options[0])
+    period_dropdown = ttk.Combobox(graph_frame, textvariable=selected_period, values=period_options, state="readonly")
+    period_dropdown.pack(padx=5, pady=5)
+    submit_wait_var = tk.IntVar()
+    submit_wait_var.set(0)
+    submit_button = ttk.Button(graph_frame, text="Confirm", command=lambda: submit_wait_var.set(1))
+    submit_button.pack(padx=5, pady=5)
+    graph_window.wait_variable(submit_wait_var)
+    period = selected_period.get()
+    graph_window.destroy()
+    graph = yf.Ticker(stock.symbol).history(period=period)
+    graph['Close'].plot()
+    plt.title(f"{stock.name} ({period})")
+    plt.xlabel("Date")
+    plt.ylabel("Price")
+    plt.show()
+    return
 
 
 def stock_news(stock: Stock):
