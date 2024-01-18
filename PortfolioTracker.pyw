@@ -50,6 +50,8 @@ class Stock:
         self.daily_rel_gain = 0.0
         self.current_price = 0.0
         self.current_value = 0.0
+        self.fifty2_week_high = 0.0
+        self.fifty2_week_low = 0.0
         self.calculate_gain()
         return
 
@@ -62,6 +64,24 @@ class Stock:
         self.current_value = 0.0
         stock_data = yf.download(self.symbol, period="1d", prepost=True)
         open_price = yf.Ticker(self.symbol).info['previousClose']
+        new_fifty2_week_high = yf.Ticker(self.symbol).info['fiftyTwoWeekHigh']
+        new_fifty2_week_low = yf.Ticker(self.symbol).info['fiftyTwoWeekLow']
+        if new_fifty2_week_high > self.fifty2_week_high:
+            if self.fifty2_week_high != 0.0:
+                if settings_json["52-week-alerts"] == 1:
+                    if self.current_price > self.fifty2_week_high:
+                        showinfo(title="52 Week High Alert",
+                                 message=f"{self.symbol} has reached a new 52 week high of ${self.fifty2_week_high}")
+                self.fifty2_week_high = new_fifty2_week_high
+            self.fifty2_week_high = new_fifty2_week_high
+        if new_fifty2_week_low < self.fifty2_week_low:
+            if self.fifty2_week_low != 0.0:
+                if settings_json["52-week-alerts"] == 1:
+                    if self.current_price < self.fifty2_week_low:
+                        showinfo(title="52 Week Low Alert",
+                                 message=f"{self.symbol} has reached a new 52 week low of ${self.fifty2_week_low}")
+                self.fifty2_week_low = new_fifty2_week_low
+            self.fifty2_week_low = new_fifty2_week_low
         try:
             self.current_price = stock_data['Close'].iloc[-1]
         except Exception as e:
@@ -741,8 +761,6 @@ def update_main_window():
     table.heading("Total %", text="Total %")
     table.heading("Day $", text="Day $")
     table.heading("Day %", text="Day %")
-    portfolio.sort_type = settings_json["default-sort"]
-    portfolio.sort_portfolio()
     for stock in portfolio.sorted_securities:
         table.insert("", tk.END, values=[stock.symbol, stock.name, round(stock.current_price, 2), stock.shares,
                                          round(stock.current_value, 2), stock.avg_price,
@@ -1554,7 +1572,7 @@ def app_settings():
         pass
     except Exception:
         pass
-    root.geometry("660x350")
+    root.geometry("700x350")
     settings_window_title = ttk.Label(root, text="Settings", font=("Helvetica", 30))
     settings_window_title.grid(padx=5, pady=5, column=0, row=0, columnspan=3)
     customization_frame = ttk.LabelFrame(root, text="Customization")
@@ -1566,7 +1584,8 @@ def app_settings():
     sort_dropdown_label = ttk.Label(customization_frame, text="Default Sort")
     default_sort_var = tk.StringVar()
     sort_dropdown_label.pack(padx=5, pady=5)
-    sort_dropdown = ttk.Combobox(customization_frame, width=5, state="readonly", values=sort_list, textvariable=default_sort_var)
+    sort_dropdown = ttk.Combobox(customization_frame, width=5, state="readonly", values=sort_list,
+                                 textvariable=default_sort_var)
     sort_dropdown.pack(padx=5, pady=5)
     customization_frame.grid(padx=5, pady=5, column=0, row=1)
     other_frame = ttk.LabelFrame(root, text="Other")
@@ -1580,11 +1599,18 @@ def app_settings():
     eod_summary_checkbutton = ttk.Checkbutton(other_frame, text="Enable", variable=eod_summary_var, onvalue=1,
                                               offvalue=0)
     eod_summary_checkbutton.pack(padx=5, pady=5)
+    fifty2_week_alert_var = tk.IntVar()
+    fifty2_week_alert_checkbutton = ttk.Checkbutton(other_frame, text="52-Week High/Low Alerts",
+                                                    variable=fifty2_week_alert_var, onvalue=1,
+                                                    offvalue=0)
+    fifty2_week_alert_checkbutton.pack(padx=5, pady=5)
     other_frame.grid(padx=5, pady=5, column=1, row=1)
     if settings_json["dark-mode"] == 1:
         dark_mode_var.set(1)
     if settings_json["eod-summary"] == 1:
         eod_summary_var.set(1)
+    if settings_json["52-week-alert"] == 1:
+        fifty2_week_alert_var.set(1)
     default_sort_var.set(settings_json["default-sort"])
     refresh_interval_entry.insert(tk.END, settings_json["refresh-interval"])
     alerts_frame = ttk.LabelFrame(root, text="Alerts")
@@ -1615,7 +1641,8 @@ def app_settings():
         "refresh-interval": int(refresh_interval_entry.get()),
         "dark-mode": dark_mode_var.get(),
         "eod-summary": eod_summary_var.get(),
-        "default-sort": default_sort_var.get()
+        "default-sort": default_sort_var.get(),
+        "52-week-alert": fifty2_week_alert_var.get()
     }
     settings_window_title.destroy()
     customization_frame.destroy()
@@ -2307,7 +2334,8 @@ if not os.path.exists("Settings/settings.json"):
         "refresh-interval": 10,
         "dark-mode": 1,
         "eod-summary": 1,
-        "default-sort": "none"
+        "default-sort": "none",
+        "52-week-alerts": 1
     }
     settings_object = json.dumps(settings, indent=4)
     with open("Settings/settings.json", "w+") as sf:
