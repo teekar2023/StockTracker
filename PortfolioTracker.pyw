@@ -1222,6 +1222,9 @@ def log_sell():
                 shares_list.append(security.shares)
                 pass
         pass
+    if len(symbol_list) == 0:
+        showerror(title="Sell Error", message="You cannot sell all of your shares of your only stock. Please add another stock to your portfolio before selling all shares.")
+        return
     new_data = {"Symbol": symbol_list, "Name": name_list, "Shares": shares_list, "AvgPrice": price_list}
     new_df = pd.DataFrame(new_data)
     new_df.to_csv("portfolio-holdings.csv")
@@ -2373,7 +2376,7 @@ else:
     with open('portfolio-holdings.csv', 'w+', newline='') as csvfile:
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow(headers)
-        csv_writer.writerow(["AAPL", "Apple (SAMPLE NOT REAL)", 1, 150.00])
+        csv_writer.writerow(["AAPL", "Placeholder. Sell Me.", 1, 150.00])
     restart_app(None)
 table_frame = ttk.LabelFrame(root, text="Holdings")
 stats_frame = ttk.Frame(root)
