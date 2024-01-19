@@ -63,7 +63,7 @@ class Stock:
         self.current_price = 0.0
         self.current_value = 0.0
         stock_data = yf.download(self.symbol, period="1d", prepost=True)
-        open_price = yf.Ticker(self.symbol).info['previousClose']
+        previous_close = yf.Ticker(self.symbol).info['previousClose']
         new_fifty2_week_high = yf.Ticker(self.symbol).info['fiftyTwoWeekHigh']
         new_fifty2_week_low = yf.Ticker(self.symbol).info['fiftyTwoWeekLow']
         if new_fifty2_week_high > self.fifty2_week_high:
@@ -89,7 +89,7 @@ class Stock:
             restart_app(None)
         self.absolute_gain = (self.current_price - self.avg_price) * self.shares
         self.relative_gain = (self.absolute_gain / self.initial_value) * 100
-        self.daily_abs_gain = (self.current_price - open_price) * self.shares
+        self.daily_abs_gain = (self.current_price - previous_close) * self.shares
         self.daily_rel_gain = (self.daily_abs_gain / self.initial_value) * 100
         self.current_value = self.current_price * self.shares
         return
@@ -733,6 +733,12 @@ def res(q, box, input_box, window):
 def update_main_window():
     global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label, loading_bar, current_task, loading_tasks, portfolio_frame
     root.geometry("1500x525")
+    root.update_idletasks()
+    width = root.winfo_width()
+    height = root.winfo_height()
+    x = (root.winfo_screenwidth() // 2) - (width // 2)
+    y = (root.winfo_screenheight() // 2) - (height // 2)
+    root.geometry('{}x{}+{}+{}'.format(width, height, x, y))
     root.deiconify()
     for stock in portfolio.securities:
         stock.calculate_gain()
@@ -878,6 +884,12 @@ def update_main_window():
 
 def load_app():
     global root, loading_label, portfolio, stats_frame, table_frame, actions_frame, table, refresh_interval, last_refreshed_text, other_loading_label, loading_bar, current_task, df
+    root.update_idletasks()
+    width = root.winfo_width()
+    height = root.winfo_height()
+    x = (root.winfo_screenwidth() // 2) - (width // 2)
+    y = (root.winfo_screenheight() // 2) - (height // 2)
+    root.geometry('{}x{}+{}+{}'.format(width, height, x, y))
     for i in range(len(df)):
         symbol = df.loc[i, 'Symbol']
         name = df.loc[i, 'Name']
@@ -1583,7 +1595,7 @@ def app_settings():
     dark_mode_checkbutton = ttk.Checkbutton(customization_frame, text="Dark Mode", variable=dark_mode_var, onvalue=1,
                                             offvalue=0)
     dark_mode_checkbutton.pack(padx=5, pady=5)
-    sort_list = ["price", "shares", "value", "cost", "total$", "total%", "day$", "day%", "symbol", "name"]
+    sort_list = ["price", "shares", "value", "cost", "total$", "total%", "day$", "day%", "symbol", "name", "none"]
     sort_dropdown_label = ttk.Label(customization_frame, text="Default Sort")
     default_sort_var = tk.StringVar()
     sort_dropdown_label.pack(padx=5, pady=5)
@@ -1612,7 +1624,7 @@ def app_settings():
         dark_mode_var.set(1)
     if settings_json["eod-summary"] == 1:
         eod_summary_var.set(1)
-    if settings_json["52-week-alert"] == 1:
+    if settings_json["52-week-alerts"] == 1:
         fifty2_week_alert_var.set(1)
     default_sort_var.set(settings_json["default-sort"])
     refresh_interval_entry.insert(tk.END, settings_json["refresh-interval"])
@@ -1645,7 +1657,7 @@ def app_settings():
         "dark-mode": dark_mode_var.get(),
         "eod-summary": eod_summary_var.get(),
         "default-sort": default_sort_var.get(),
-        "52-week-alert": fifty2_week_alert_var.get()
+        "52-week-alerts": fifty2_week_alert_var.get()
     }
     settings_window_title.destroy()
     customization_frame.destroy()
@@ -2364,7 +2376,7 @@ if os.path.exists("portfolio-holdings.csv"):
                         "Connecting to Yahoo Finance...", "Observing Market Trends...", "Traveling to Wall Street..."]
     other_loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 16))
     other_loading_label.pack()
-    loading_bar = ttk.Progressbar(root, orient="horizontal", length=500, mode="determinate")
+    loading_bar = ttk.Progressbar(root, orient="horizontal", length=400, mode="determinate")
     loading_bar.pack(pady=10)
     loading_tasks = len(df) + 1
     current_task = 1

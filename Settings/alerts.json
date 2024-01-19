@@ -1,32 +1,12 @@
 [
     {
-        "symbol": "AAPL",
-        "target-price": 190.0,
-        "tresh": "Rises Above"
-    },
-    {
         "symbol": "NVDA",
         "target-price": 600.0,
         "tresh": "Rises Above"
     },
     {
-        "symbol": "PORTFOLIO",
-        "target-price": 1250.0,
-        "tresh": "Rises Above"
-    },
-    {
-        "symbol": "PORTFOLIO",
-        "target-price": 1275.0,
-        "tresh": "Rises Above"
-    },
-    {
-        "symbol": "PORTFOLIO",
-        "target-price": 1300.0,
-        "tresh": "Rises Above"
-    },
-    {
-        "symbol": "PORTFOLIO",
-        "target-price": 1225.0,
+        "symbol": "AAPL",
+        "target-price": 189.24,
         "tresh": "Falls Below"
     }
 ]
