@@ -1587,9 +1587,29 @@ def app_settings():
         pass
     except Exception:
         pass
-    root.geometry("700x350")
+    root.geometry("700x400")
     settings_window_title = ttk.Label(root, text="Settings", font=("Helvetica", 30))
     settings_window_title.grid(padx=5, pady=5, column=0, row=0, columnspan=3)
+    other_frame = ttk.LabelFrame(root, text="Application")
+    refresh_interval_label = ttk.Label(other_frame, text="Refresh Interval (Seconds)")
+    refresh_interval_label.pack(padx=5, pady=5)
+    refresh_interval_entry = ttk.Entry(other_frame, width=5)
+    refresh_interval_entry.pack(padx=5, pady=5)
+    eod_summary_var = tk.IntVar()
+    eod_summary_checkbutton = ttk.Checkbutton(other_frame, text="End Of Day Summary", variable=eod_summary_var, onvalue=1,
+                                              offvalue=0)
+    eod_summary_checkbutton.pack(padx=5, pady=5)
+    fifty2_week_alert_var = tk.IntVar()
+    fifty2_week_alert_checkbutton = ttk.Checkbutton(other_frame, text="52-Week High/Low Alerts",
+                                                    variable=fifty2_week_alert_var, onvalue=1,
+                                                    offvalue=0)
+    fifty2_week_alert_checkbutton.pack(padx=5, pady=5)
+    alpha_vantage_key_label = ttk.Label(other_frame, text="Alpha Vantage API Key")
+    alpha_vantage_key_label.pack(padx=5, pady=5)
+    alpha_vantage_key_var = tk.StringVar()
+    alpha_vantage_key_entry = ttk.Entry(other_frame, width=20, textvariable=alpha_vantage_key_var)
+    alpha_vantage_key_entry.pack(padx=5, pady=5)
+    other_frame.grid(padx=5, pady=5, column=0, row=1)
     customization_frame = ttk.LabelFrame(root, text="Customization")
     dark_mode_var = tk.IntVar()
     dark_mode_checkbutton = ttk.Checkbutton(customization_frame, text="Dark Mode", variable=dark_mode_var, onvalue=1,
@@ -1602,24 +1622,7 @@ def app_settings():
     sort_dropdown = ttk.Combobox(customization_frame, width=5, state="readonly", values=sort_list,
                                  textvariable=default_sort_var)
     sort_dropdown.pack(padx=5, pady=5)
-    customization_frame.grid(padx=5, pady=5, column=0, row=1)
-    other_frame = ttk.LabelFrame(root, text="Other")
-    refresh_interval_label = ttk.Label(other_frame, text="Refresh Interval (Seconds)")
-    refresh_interval_label.pack(padx=5, pady=5)
-    refresh_interval_entry = ttk.Entry(other_frame, width=5)
-    refresh_interval_entry.pack(padx=5, pady=5)
-    eod_summary_label = ttk.Label(other_frame, text="End of Day Summary")
-    eod_summary_label.pack(padx=5, pady=5)
-    eod_summary_var = tk.IntVar()
-    eod_summary_checkbutton = ttk.Checkbutton(other_frame, text="Enable", variable=eod_summary_var, onvalue=1,
-                                              offvalue=0)
-    eod_summary_checkbutton.pack(padx=5, pady=5)
-    fifty2_week_alert_var = tk.IntVar()
-    fifty2_week_alert_checkbutton = ttk.Checkbutton(other_frame, text="52-Week High/Low Alerts",
-                                                    variable=fifty2_week_alert_var, onvalue=1,
-                                                    offvalue=0)
-    fifty2_week_alert_checkbutton.pack(padx=5, pady=5)
-    other_frame.grid(padx=5, pady=5, column=1, row=1)
+    customization_frame.grid(padx=5, pady=5, column=1, row=1)
     if settings_json["dark-mode"] == 1:
         dark_mode_var.set(1)
     if settings_json["eod-summary"] == 1:
@@ -1627,6 +1630,7 @@ def app_settings():
     if settings_json["52-week-alerts"] == 1:
         fifty2_week_alert_var.set(1)
     default_sort_var.set(settings_json["default-sort"])
+    alpha_vantage_key_var.set(settings_json["alpha-vantage-key"])
     refresh_interval_entry.insert(tk.END, settings_json["refresh-interval"])
     alerts_frame = ttk.LabelFrame(root, text="Alerts")
     list_of_alerts_string = "-----Current Alerts-----\n"
@@ -1644,10 +1648,10 @@ def app_settings():
     remove_alert_button.grid(padx=5, pady=5, column=2, row=0)
     alerts_frame.grid(padx=5, pady=5, row=1, column=2)
     settings_wait_var = tk.IntVar(root, 0)
-    save_button = ttk.Button(root, text="Save", command=lambda: settings_wait_var.set(1), style="Accent.TButton")
-    save_button.grid(row=2, column=1, padx=5, pady=5)
-    back_button = ttk.Button(root, text="Back", command=lambda: restart_app(None))
-    back_button.grid(padx=5, pady=5, row=2, column=0)
+    save_button = ttk.Button(root, text="Save", command=lambda: settings_wait_var.set(1), style="Accent.TButton", width=20)
+    save_button.grid(row=2, column=0, padx=5, pady=5, columnspan=2)
+    back_button = ttk.Button(root, text="Back", command=lambda: restart_app(None), width=20)
+    back_button.grid(padx=5, pady=5, row=3, column=0, columnspan=2)
     root.deiconify()
     root.update()
     root.focus_set()
@@ -1657,7 +1661,8 @@ def app_settings():
         "dark-mode": dark_mode_var.get(),
         "eod-summary": eod_summary_var.get(),
         "default-sort": default_sort_var.get(),
-        "52-week-alerts": fifty2_week_alert_var.get()
+        "52-week-alerts": fifty2_week_alert_var.get(),
+        "alpha-vantage-key": alpha_vantage_key_var.get()
     }
     settings_window_title.destroy()
     customization_frame.destroy()
@@ -2350,7 +2355,8 @@ if not os.path.exists("Settings/settings.json"):
         "dark-mode": 1,
         "eod-summary": 1,
         "default-sort": "none",
-        "52-week-alerts": 1
+        "52-week-alerts": 1,
+        "alpha-vantage-key": "none"
     }
     settings_object = json.dumps(settings, indent=4)
     with open("Settings/settings.json", "w+") as sf:
@@ -2382,7 +2388,7 @@ if os.path.exists("portfolio-holdings.csv"):
     current_task = 1
     loading_bar['maximum'] = loading_tasks
     loading_bar['value'] = current_task
-    root.after(100, load_app)
+    root.after(500, load_app)
 else:
     headers = ["Symbol", "Name", "Shares", "AvgPrice"]
     with open('portfolio-holdings.csv', 'w+', newline='') as csvfile:
