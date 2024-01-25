@@ -1587,10 +1587,10 @@ def app_settings():
         pass
     except Exception:
         pass
-    root.geometry("700x400")
+    root.geometry("715x400")
     settings_window_title = ttk.Label(root, text="Settings", font=("Helvetica", 30))
     settings_window_title.grid(padx=5, pady=5, column=0, row=0, columnspan=3)
-    other_frame = ttk.LabelFrame(root, text="Application")
+    other_frame = ttk.LabelFrame(root, text="General")
     refresh_interval_label = ttk.Label(other_frame, text="Refresh Interval (Seconds)")
     refresh_interval_label.pack(padx=5, pady=5)
     refresh_interval_entry = ttk.Entry(other_frame, width=5)
@@ -1610,7 +1610,7 @@ def app_settings():
     alpha_vantage_key_entry = ttk.Entry(other_frame, width=20, textvariable=alpha_vantage_key_var)
     alpha_vantage_key_entry.pack(padx=5, pady=5)
     other_frame.grid(padx=5, pady=5, column=0, row=1)
-    customization_frame = ttk.LabelFrame(root, text="Customization")
+    customization_frame = ttk.LabelFrame(root, text="Appearance")
     dark_mode_var = tk.IntVar()
     dark_mode_checkbutton = ttk.Checkbutton(customization_frame, text="Dark Mode", variable=dark_mode_var, onvalue=1,
                                             offvalue=0)
@@ -1637,15 +1637,16 @@ def app_settings():
     alerts_json = json.load(open("Settings/alerts.json", "r"))
     for alert in alerts_json:
         if alert["tresh"] == "Rises Above":
-            list_of_alerts_string += f"{alert["symbol"]} | ≥${alert["target-price"]}\n"
+            list_of_alerts_string += f"{alert["symbol"]}: ≥${alert["target-price"]}\n"
         else:
-            list_of_alerts_string += f"{alert["symbol"]} | ≤${alert["target-price"]}\n"
-    list_of_alerts_text = ttk.Label(alerts_frame, text=list_of_alerts_string)
+            list_of_alerts_string += f"{alert["symbol"]}: ≤${alert["target-price"]}\n"
+    list_of_alerts_text = tk.Text(alerts_frame, width=25, height=15)
+    list_of_alerts_text.insert(tk.END, list_of_alerts_string)
     list_of_alerts_text.grid(padx=5, pady=5, column=0, row=0)
     add_alert_button = ttk.Button(alerts_frame, text="Create", command=create_alert)
-    add_alert_button.grid(padx=5, pady=5, column=1, row=0)
+    add_alert_button.grid(padx=5, pady=50, column=1, row=0)
     remove_alert_button = ttk.Button(alerts_frame, text="Remove", command=remove_alert)
-    remove_alert_button.grid(padx=5, pady=5, column=2, row=0)
+    remove_alert_button.grid(padx=5, pady=50, column=2, row=0)
     alerts_frame.grid(padx=5, pady=5, row=1, column=2)
     settings_wait_var = tk.IntVar(root, 0)
     save_button = ttk.Button(root, text="Save", command=lambda: settings_wait_var.set(1), style="Accent.TButton", width=20)
@@ -2333,7 +2334,6 @@ def quit_app(event):
         root.after_cancel(refresh_interval)
     except Exception:
         pass
-    root.destroy()
     sys.exit(0)
 
 

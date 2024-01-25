@@ -1,12 +1,32 @@
 [
     {
-        "symbol": "NVDA",
-        "target-price": 600.0,
-        "tresh": "Rises Above"
-    },
-    {
         "symbol": "AAPL",
         "target-price": 189.24,
         "tresh": "Falls Below"
+    },
+    {
+        "symbol": "AAPL",
+        "target-price": 200.0,
+        "tresh": "Rises Above"
+    },
+    {
+        "symbol": "TSLA",
+        "target-price": 267.22,
+        "tresh": "Rises Above"
+    },
+    {
+        "symbol": "CSCO",
+        "target-price": 54.37,
+        "tresh": "Rises Above"
+    },
+    {
+        "symbol": "LMT",
+        "target-price": 446.43,
+        "tresh": "Rises Above"
+    },
+    {
+        "symbol": "VOO",
+        "target-price": 500.0,
+        "tresh": "Rises Above"
     }
 ]
