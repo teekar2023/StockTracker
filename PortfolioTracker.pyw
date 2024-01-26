@@ -101,6 +101,7 @@ class Portfolio:
         self.sort_type = "none"
         self.sorted_securities = []
         self.total_value = 0.0
+        self.last_total_value = 0.0
         self.total_abs_gain = 0.0
         self.total_rel_gain = 0.0
         self.total_daily_abs_gain = 0.0
@@ -113,6 +114,7 @@ class Portfolio:
         self.total_rel_gain = 0.00
         self.total_daily_abs_gain = 0.0
         self.total_daily_rel_gain = 0.0
+        self.last_total_value = self.total_value
         self.total_value = 0.0
         self.total_initial_value = 0.0
         for position in self.securities:
@@ -792,13 +794,25 @@ def update_main_window():
         daily_text = "Daily (W)"
     else:
         daily_text = "Daily"
-    total_value_label = ttk.Label(stats_frame, text=f"Value\n-----\n${portfolio.total_value}", font=("Helvetica", 18))
-    daily_gain_label = ttk.Label(stats_frame,
-                                 text=f"{daily_text}\n-----\n${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
-                                 font=("Helvetica", 18))
-    total_gain_label = ttk.Label(stats_frame,
-                                 text=f"Total\n-----\n${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
-                                 font=("Helvetica", 18))
+    total_value_label = ttk.Label(
+        stats_frame,
+        text=f"Value\n-----\n${portfolio.total_value}",
+        font=("Helvetica", 18),
+        foreground=get_gain_color(0.0)
+    )
+    daily_gain_label = ttk.Label(
+        stats_frame,
+        text=f"{daily_text}\n-----\n${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
+        font=("Helvetica", 18),
+        foreground=get_gain_color(portfolio.total_daily_abs_gain)
+    )
+    daily_gain_label.bind("<Button-1>", show_daily_summary)
+    total_gain_label = ttk.Label(
+        stats_frame,
+        text=f"Total\n-----\n${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
+        font=("Helvetica", 18),
+        foreground=get_gain_color(portfolio.total_abs_gain)
+    )
     total_value_label.grid(column=0, row=0, padx=50, pady=10)
     daily_gain_label.grid(column=1, row=0, padx=50, pady=10)
     total_gain_label.grid(column=2, row=0, padx=50, pady=10)
@@ -834,6 +848,7 @@ def update_main_window():
     actions_frame.grid(padx=10, pady=10, column=1, row=1)
     root.deiconify()
     root.update()
+    flash_total_value_label(total_value_label)
     print("Refresh complete")
     alerts_json = json.load(open("Settings/alerts.json", "r"))
     triggered_alerts = []
@@ -947,13 +962,25 @@ def load_app():
         daily_text = "Daily (W)"
     else:
         daily_text = "Daily"
-    total_value_label = ttk.Label(stats_frame, text=f"Value\n-----\n${portfolio.total_value}", font=("Helvetica", 18))
-    daily_gain_label = ttk.Label(stats_frame,
-                                 text=f"{daily_text}\n-----\n${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
-                                 font=("Helvetica", 18))
-    total_gain_label = ttk.Label(stats_frame,
-                                 text=f"Total\n-----\n${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
-                                 font=("Helvetica", 18))
+    total_value_label = ttk.Label(
+        stats_frame,
+        text=f"Value\n-----\n${portfolio.total_value}",
+        font=("Helvetica", 18),
+        foreground=get_gain_color(0.0)
+    )
+    daily_gain_label = ttk.Label(
+        stats_frame,
+        text=f"{daily_text}\n-----\n${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
+        font=("Helvetica", 18),
+        foreground=get_gain_color(portfolio.total_daily_abs_gain)
+    )
+    daily_gain_label.bind("<Button-1>", show_daily_summary)
+    total_gain_label = ttk.Label(
+        stats_frame,
+        text=f"Total\n-----\n${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
+        font=("Helvetica", 18),
+        foreground=get_gain_color(portfolio.total_abs_gain)
+    )
     total_value_label.grid(column=0, row=0, padx=50, pady=10)
     daily_gain_label.grid(column=1, row=0, padx=50, pady=10)
     total_gain_label.grid(column=2, row=0, padx=50, pady=10)
@@ -1032,6 +1059,23 @@ def load_app():
     if settings_json['eod-summary'] == 1:
         eod_summary()
     return
+
+
+def get_gain_color(gain_value):
+    if gain_value > 0:
+        return "green"
+    elif gain_value < 0:
+        return "red"
+    else:
+        return "white"
+
+
+def flash_total_value_label(total_value_label):
+    gain_color = get_gain_color(portfolio.total_value - portfolio.last_total_value)
+    total_value_label.config(foreground=gain_color)
+    total_value_label.config(foreground=gain_color)
+    root.after(500, lambda: total_value_label.config(foreground="white"))
+    root.update()
 
 
 def sort_handler(event):
@@ -2223,7 +2267,7 @@ def eod_summary():
         return
 
 
-def show_daily_summary():
+def show_daily_summary(event):
     global table_frame, stats_frame, actions_frame, table, refresh_interval, portfolio, last_refreshed_text, loading_label, other_loading_label
     root.after_cancel(refresh_interval)
     try:
@@ -2238,7 +2282,7 @@ def show_daily_summary():
     summary_window_title.grid(row=0, column=1, padx=5, pady=5)
     holdings_summary_text = ttk.Label(root, text=f"Current Value: ${portfolio.total_value}\n"
                                                  f"Daily Change: ${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
-                                      font=("Helvetica", 15))
+                                      font=("Helvetica", 15), foreground=get_gain_color(portfolio.total_daily_abs_gain))
     holdings_summary_text.grid(row=1, column=1, padx=5, pady=5)
     history_frame = ttk.Frame(root)
     history_frame.grid(row=0, column=1, padx=5, pady=5)
