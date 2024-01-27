@@ -753,7 +753,7 @@ def update_main_window():
         pass
     except Exception:
         pass
-    table_frame = ttk.LabelFrame(root, text="Holdings")
+    table_frame = ttk.Frame(root)
     table = ttk.Treeview(table_frame, columns=(
         "Symbol", "Name", "Price", "Shares", "Value", "Cost/Share", "Total $", "Total %",
         "Day $", "Day %"), height=len(portfolio.securities))
@@ -2255,7 +2255,7 @@ def eod_summary():
                 print("Showing eod summary")
                 with open("last-summary-date.txt", "w") as file:
                     file.write(today)
-                show_daily_summary()
+                show_daily_summary(None)
                 return
         return
     else:
@@ -2440,7 +2440,7 @@ else:
         csv_writer.writerow(headers)
         csv_writer.writerow(["AAPL", "Placeholder. Sell Me.", 1, 150.00])
     restart_app(None)
-table_frame = ttk.LabelFrame(root, text="Holdings")
+table_frame = ttk.Frame(root)
 stats_frame = ttk.Frame(root)
 launch_time = time.strftime('%l:%M:%S')
 last_refreshed_text = ttk.Label(root, text=f"↻ {launch_time}", font=("Helvetica", 15))
