@@ -8,10 +8,13 @@ import time
 from tkinter import ttk, filedialog
 from tkinter.messagebox import askyesno, showinfo, showerror
 from tkinter.simpledialog import askstring
+
+from PIL import Image, ImageTk
 from dateutil.relativedelta import relativedelta
 
 try:
     import pandas as pd
+    import pandas_datareader as web
     import yfinance as yf
     import sv_ttk
     from matplotlib import pyplot as plt
@@ -415,7 +418,7 @@ class Assistant:
                     else:
                         response = f"Your {stock.symbol} position is up today at ${round(stock.daily_abs_gain, 2)} ({round(stock.daily_rel_gain, 2)}%) for a total change of ${round(stock.absolute_gain, 2)} ({round(stock.relative_gain, 2)}%)"
             else:
-                show_daily_summary()
+                show_daily_summary(None)
         if tag == "total-performance":
             symbol_pattern = r"\b[A-Z]{2,5}\b"
             match = re.search(symbol_pattern, prompt)
@@ -577,7 +580,7 @@ class Assistant:
                 output_parts.append(f"{seconds} seconds")
             return f"The current fiscal quarter ends in {', '.join(output_parts)}."
         if tag == "day-stock-rating":
-            show_daily_summary()
+            show_daily_summary(None)
         if tag == "stock-info":
             symbol_pattern = r"\b[A-Z]{2,5}\b"
             match = re.search(symbol_pattern, prompt)
@@ -769,6 +772,7 @@ def update_main_window():
     table.heading("Total %", text="Total %")
     table.heading("Day $", text="Day $")
     table.heading("Day %", text="Day %")
+    portfolio.sort_portfolio()
     for stock in portfolio.sorted_securities:
         table.insert("", tk.END, values=[stock.symbol, stock.name, round(stock.current_price, 2), stock.shares,
                                          round(stock.current_value, 2), stock.avg_price,
@@ -791,27 +795,25 @@ def update_main_window():
     daily_text = ""
     now = datetime.now(pytz.timezone('US/Eastern'))
     if is_weekend(now):
-        daily_text = "Daily (W)"
+        daily_text = "Friday's Gain"
     else:
-        daily_text = "Daily"
+        daily_text = "Day's Gain"
     total_value_label = ttk.Label(
         stats_frame,
-        text=f"Value\n-----\n${portfolio.total_value}",
-        font=("Helvetica", 18),
+        text=f"${portfolio.total_value}",
+        font=("Helvetica", 30),
         foreground=get_gain_color(0.0)
     )
     daily_gain_label = ttk.Label(
         stats_frame,
         text=f"{daily_text}\n-----\n${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
-        font=("Helvetica", 18),
-        foreground=get_gain_color(portfolio.total_daily_abs_gain)
+        font=("Helvetica", 18)
     )
     daily_gain_label.bind("<Button-1>", show_daily_summary)
     total_gain_label = ttk.Label(
         stats_frame,
-        text=f"Total\n-----\n${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
-        font=("Helvetica", 18),
-        foreground=get_gain_color(portfolio.total_abs_gain)
+        text=f"Total Gain\n-----\n${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
+        font=("Helvetica", 18)
     )
     total_value_label.grid(column=0, row=0, padx=50, pady=10)
     daily_gain_label.grid(column=1, row=0, padx=50, pady=10)
@@ -913,7 +915,7 @@ def load_app():
         new_stock = Stock(symbol, name, shares, avg_price)
         portfolio.add_security(new_stock)
         current_task += 1
-        if current_task % 5 == 0:
+        if current_task % 3 == 0:
             other_loading_label.config(text=random.choice(loading_messages))
             other_loading_label.update()
         loading_bar['value'] = current_task
@@ -959,27 +961,25 @@ def load_app():
     daily_text = ""
     now = datetime.now(pytz.timezone('US/Eastern'))
     if is_weekend(now):
-        daily_text = "Daily (W)"
+        daily_text = "Friday's Gain"
     else:
-        daily_text = "Daily"
+        daily_text = "Day's Gain"
     total_value_label = ttk.Label(
         stats_frame,
-        text=f"Value\n-----\n${portfolio.total_value}",
-        font=("Helvetica", 18),
+        text=f"${portfolio.total_value}",
+        font=("Helvetica", 30),
         foreground=get_gain_color(0.0)
     )
     daily_gain_label = ttk.Label(
         stats_frame,
         text=f"{daily_text}\n-----\n${portfolio.total_daily_abs_gain} ({portfolio.total_daily_rel_gain}%)",
-        font=("Helvetica", 18),
-        foreground=get_gain_color(portfolio.total_daily_abs_gain)
+        font=("Helvetica", 18)
     )
     daily_gain_label.bind("<Button-1>", show_daily_summary)
     total_gain_label = ttk.Label(
         stats_frame,
-        text=f"Total\n-----\n${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
-        font=("Helvetica", 18),
-        foreground=get_gain_color(portfolio.total_abs_gain)
+        text=f"Total Gain\n-----\n${portfolio.total_abs_gain} ({portfolio.total_rel_gain}%)",
+        font=("Helvetica", 18)
     )
     total_value_label.grid(column=0, row=0, padx=50, pady=10)
     daily_gain_label.grid(column=1, row=0, padx=50, pady=10)
@@ -1134,6 +1134,8 @@ def sort_handler(event):
 
 def log_buy():
     buy_window = tk.Toplevel(root)
+    root.after_cancel(refresh_interval)
+    buy_window.protocol("WM_DELETE_WINDOW", update_main_window)
     buy_window.geometry("200x300")
     buy_window.title("Log Buy")
     buy_window_title = ttk.Label(buy_window, text="Add Buy to Portfolio")
@@ -1166,10 +1168,11 @@ def log_buy():
     shares_list = []
     price_list = []
     for stock in portfolio.securities:
-        symbol_list.append(stock.symbol)
-        name_list.append(stock.name)
-        shares_list.append(stock.shares)
-        price_list.append(stock.avg_price)
+        if stock.symbol != symbol:
+            symbol_list.append(stock.symbol)
+            name_list.append(stock.name)
+            shares_list.append(stock.shares)
+            price_list.append(stock.avg_price)
     symbol_list.append(symbol)
     name_list.append(yf.Ticker(symbol).info["shortName"])
     for stock in portfolio.securities:
@@ -1177,7 +1180,7 @@ def log_buy():
             old_value = stock.initial_value
             old_shares = stock.shares
             new_shares = shares + old_shares
-            new_buy_price = (old_value + (shares * buy_price)) / (old_shares + shares)
+            new_buy_price = round((old_value + (shares * buy_price)) / (old_shares + shares), 2)
             shares_list.append(new_shares)
             price_list.append(new_buy_price)
             new_data = {"Symbol": symbol_list, "Name": name_list, "Shares": shares_list, "AvgPrice": price_list}
@@ -1224,6 +1227,8 @@ def sell_all_shares(window, stock):
 
 def log_sell():
     sell_window = tk.Toplevel(root)
+    root.after_cancel(refresh_interval)
+    sell_window.protocol("WM_DELETE_WINDOW", update_main_window)
     sell_window.geometry("200x300")
     sell_window.title("Log Sell")
     stock_label = ttk.Label(sell_window, text="Select Stock")
@@ -1279,7 +1284,8 @@ def log_sell():
                 pass
         pass
     if len(symbol_list) == 0:
-        showerror(title="Sell Error", message="You cannot sell all of your shares of your only stock. Please add another stock to your portfolio before selling all shares.")
+        showerror(title="Sell Error",
+                  message="You cannot sell all of your shares of your only stock. Please add another stock to your portfolio before selling all shares.")
         return
     new_data = {"Symbol": symbol_list, "Name": name_list, "Shares": shares_list, "AvgPrice": price_list}
     new_df = pd.DataFrame(new_data)
@@ -1346,11 +1352,11 @@ def on_stock_selected(event):
         pass
     dividend_frame.grid(padx=5, pady=5, column=0, row=2)
     tool_frame = ttk.LabelFrame(root, text="More Tools")
-    graphs_button = ttk.Button(tool_frame, text="Graphs", command=lambda: stock_graphs(stock))
+    graphs_button = ttk.Button(tool_frame, text="Graphs", command=lambda: stock_graphs(stock.symbol))
     graphs_button.grid(padx=5, pady=5, column=0, row=0)
-    news_button = ttk.Button(tool_frame, text="News", command=lambda: stock_news(stock))
+    news_button = ttk.Button(tool_frame, text="News", command=lambda: stock_news(stock.symbol))
     news_button.grid(padx=5, pady=5, column=1, row=0)
-    earnings_button = ttk.Button(tool_frame, text="Earnings", command=lambda: stock_earnings(stock))
+    earnings_button = ttk.Button(tool_frame, text="Earnings", command=lambda: stock_earnings(stock.symbol))
     earnings_button.grid(padx=5, pady=5, column=0, row=1)
     back_button_wait_var = tk.IntVar(root, 0)
     back_button = ttk.Button(tool_frame, text="Back", command=lambda: back_button_wait_var.set(1))
@@ -1444,11 +1450,11 @@ def search_stock(symbol_input=None):
         pass
     dividend_frame.grid(padx=5, pady=5, column=0, row=2)
     tool_frame = ttk.LabelFrame(root, text="More Tools")
-    graphs_button = ttk.Button(tool_frame, text="Graphs", command=lambda: stock_graphs(stock))
+    graphs_button = ttk.Button(tool_frame, text="Graphs", command=lambda: stock_graphs(stock.symbol))
     graphs_button.grid(padx=5, pady=5, column=0, row=0)
-    news_button = ttk.Button(tool_frame, text="News", command=lambda: stock_news(stock))
+    news_button = ttk.Button(tool_frame, text="News", command=lambda: stock_news(stock.symbol))
     news_button.grid(padx=5, pady=5, column=1, row=0)
-    earnings_button = ttk.Button(tool_frame, text="Earnings", command=lambda: stock_earnings(stock))
+    earnings_button = ttk.Button(tool_frame, text="Earnings", command=lambda: stock_earnings(stock.symbol))
     earnings_button.grid(padx=5, pady=5, column=0, row=1)
     back_button_wait_var = tk.IntVar(root, 0)
     back_button = ttk.Button(tool_frame, text="Back", command=lambda: back_button_wait_var.set(1))
@@ -1474,11 +1480,13 @@ def search_stock(symbol_input=None):
     return
 
 
-def stock_graphs(stock: Stock):
+def stock_graphs(ticker: str):
     graph_window = tk.Toplevel(root)
     graph_window.geometry("300x150")
     graph_window.title("Stock Graphs")
-    graph_window_title = ttk.Label(graph_window, text=f"{stock.name} ({stock.symbol})")
+    stock = yf.Ticker(ticker).info
+    stock_name = stock['shortName']
+    graph_window_title = ttk.Label(graph_window, text=f"{stock_name} ({ticker})")
     graph_window_title.pack(padx=5, pady=5)
     graph_frame = ttk.Frame(graph_window)
     graph_frame.pack(padx=5, pady=5)
@@ -1494,24 +1502,27 @@ def stock_graphs(stock: Stock):
     graph_window.wait_variable(submit_wait_var)
     period = selected_period.get()
     graph_window.destroy()
-    graph = yf.Ticker(stock.symbol).history(period=period)
+    graph = yf.Ticker(ticker).history(period=period)
     graph['Close'].plot()
-    plt.title(f"{stock.name} ({period})")
+    plt.title(f"{stock_name} ({period})")
     plt.xlabel("Date")
     plt.ylabel("Price")
+    plt.tight_layout()
     plt.show()
     return
 
 
-def stock_news(stock: Stock):
+def stock_news(ticker: str):
     news_window = tk.Toplevel(root)
     news_window.geometry("900x700")
     news_window.title("Stock News")
-    news_window_title = ttk.Label(news_window, text=f"{stock.name} News")
+    stock = yf.Ticker(ticker).info
+    stock_name = stock['shortName']
+    news_window_title = ttk.Label(news_window, text=f"{stock_name} News")
     news_window_title.pack(padx=5, pady=5)
     news_frame = ttk.Frame(news_window)
     news_frame.pack(padx=5, pady=5)
-    news = yf.Ticker(stock.symbol).news
+    news = yf.Ticker(ticker).news
     for article in news:
         article_title = article['title']
         article_url = article['link']
@@ -1526,7 +1537,7 @@ def stock_news(stock: Stock):
     return
 
 
-def stock_earnings(stock: Stock):
+def stock_earnings(ticker: str):
     return  # TODO
 
 
@@ -1619,7 +1630,75 @@ def dividend_tracker():
 
 
 def benchmark_portfolio_performance():
-    return  # TODO allow user to select benchmark from dropdown and show both graphs on top of each other
+    global refresh_interval
+    root.after_cancel(refresh_interval)
+    period = askstring("Period Input",
+                       "Please enter the period (e.g., '1d', '5d', '1mo', '3mo', '6mo', '1y', '5y', 'ytd', 'max'): ")
+    index = askstring("Index Input", "Please enter the index (e.g., '^GSPC', '^DJI', '^RUT'): ")
+    if period is None or period == "" or period.isspace() or period not in ["1d", "5d", "1mo", "3mo", "6mo", "1y", "5y",
+                                                                            "ytd", "max"]:
+        showerror(title="Invalid Period", message="Invalid period input. Please try again.")
+        return
+    if index is None or index == "" or index.isspace() or index not in ["^GSPC", "^DJI", "^RUT"]:
+        showerror(title="Invalid Index", message="Invalid index input. Please try again.")
+        return
+    today = date.today()
+    data = get_historical_prices(portfolio.securities, period)
+    index_data = get_index_prices(index, period)
+    data['portfolio_value'] = data.filter(like='_value').sum(axis=1)
+    plt.figure(figsize=(10, 6))
+    x_end_portfolio = data.index[-1]
+    y_end_portfolio = (data['portfolio_value'][-1] - data['portfolio_value'][0]) / data['portfolio_value'][0] * 100
+    x_end_index = index_data.index[-1]
+    y_end_index = (index_data[-1] - index_data[0]) / index_data[0] * 100
+    line_portfolio, = plt.plot(data.index,
+                               (data['portfolio_value'] - data['portfolio_value'][0]) / data['portfolio_value'][
+                                   0] * 100, label='Portfolio Value Relative Change')
+    portfolio_color = line_portfolio.get_color()
+    plt.annotate(f'{y_end_portfolio:.2f}%',
+                 xy=(x_end_portfolio, y_end_portfolio),
+                 xytext=(5, 5), textcoords='offset points',
+                 ha='left', color=portfolio_color)
+    line_index, = plt.plot(index_data.index, (index_data - index_data[0]) / index_data[0] * 100,
+                           label=f'{index} Relative Change')
+    index_color = line_index.get_color()
+    plt.annotate(f'{y_end_index:.2f}%',
+                 xy=(x_end_index, y_end_index),
+                 xytext=(5, 5), textcoords='offset points',
+                 ha='left', color=index_color)
+    plt.title('Portfolio Historical Performance')
+    plt.xlabel('Date')
+    plt.ylabel('Relative Change (%)')
+    plt.xticks(rotation=45)
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+    plt.close()
+    update_main_window()
+    return
+
+
+def get_historical_prices(stocks, period):
+    symbols = list(set(stock.symbol for stock in stocks))
+    if period in ["1y", "5y", "max", "ytd", "3mo", "6mo"]:
+        interval = "1h"
+    else:
+        interval = "5m"
+    data = yf.download(symbols, period=period, interval=interval)['Adj Close']
+    for stock in stocks:
+        data[f'{stock.symbol}_value'] = data[stock.symbol] * stock.shares
+    return data
+
+
+def get_index_prices(index, period):
+    if period in ["1y", "5y", "max", "ytd", "3mo", "6mo"]:
+        interval = "1d"
+    else:
+        interval = "5m"
+    index_data = yf.download(index, period=period, interval=interval)
+    adj_close = index_data['Adj Close']
+    return adj_close
 
 
 def app_settings():
@@ -1640,7 +1719,8 @@ def app_settings():
     refresh_interval_entry = ttk.Entry(other_frame, width=5)
     refresh_interval_entry.pack(padx=5, pady=5)
     eod_summary_var = tk.IntVar()
-    eod_summary_checkbutton = ttk.Checkbutton(other_frame, text="End Of Day Summary", variable=eod_summary_var, onvalue=1,
+    eod_summary_checkbutton = ttk.Checkbutton(other_frame, text="End Of Day Summary", variable=eod_summary_var,
+                                              onvalue=1,
                                               offvalue=0)
     eod_summary_checkbutton.pack(padx=5, pady=5)
     fifty2_week_alert_var = tk.IntVar()
@@ -1693,7 +1773,8 @@ def app_settings():
     remove_alert_button.grid(padx=5, pady=50, column=2, row=0)
     alerts_frame.grid(padx=5, pady=5, row=1, column=2)
     settings_wait_var = tk.IntVar(root, 0)
-    save_button = ttk.Button(root, text="Save", command=lambda: settings_wait_var.set(1), style="Accent.TButton", width=20)
+    save_button = ttk.Button(root, text="Save", command=lambda: settings_wait_var.set(1), style="Accent.TButton",
+                             width=20)
     save_button.grid(row=2, column=0, padx=5, pady=5)
     back_button = ttk.Button(root, text="Back", command=lambda: restart_app(None), width=20)
     back_button.grid(padx=5, pady=5, row=3, column=0)
@@ -1850,7 +1931,7 @@ def portfolio_summary():
         pass
     except Exception:
         pass
-    root.geometry("1100x535")
+    root.geometry("1400x600")
     summary_window_title = ttk.Label(root, text="Portfolio Summary", font=("Helvetica", 30))
     summary_window_title.grid(row=0, column=1, padx=5, pady=5)
     holdings_summary_text = ttk.Label(root, text=f"Current Value: ${portfolio.total_value}\n"
@@ -1861,7 +1942,23 @@ def portfolio_summary():
     holdings_summary_text.grid(row=1, column=1, padx=5, pady=5)
     history_frame = ttk.Frame(root)
     history_frame.grid(row=0, column=1, padx=5, pady=5)
-    # TODO add history graph
+    data = get_historical_prices(portfolio.securities, "1y")
+    data['portfolio_value'] = data.filter(like='_value').sum(axis=1)
+    plt.figure(figsize=(10, 6))
+    plt.plot(data.index, data['portfolio_value'], label='Portfolio Value')
+    plt.title('Portfolio Historical Performance')
+    plt.xlabel('Date')
+    plt.ylabel('Value (USD)')
+    plt.xticks(rotation=45)
+    plt.grid(True)
+    plt.legend()
+    plt.savefig('resources/portfolio-history-1y.png')
+    plt.close()
+    img = Image.open('resources/portfolio-history-1y.png')
+    img = img.resize((600, 400))
+    img = ImageTk.PhotoImage(img)
+    img_label = ttk.Label(root, image=img)
+    img_label.image = img
     allocation_frame = ttk.LabelFrame(root, text="Allocation")
     stock_count = 0
     etf_count = 0
@@ -1934,6 +2031,7 @@ def portfolio_summary():
     top_losers_rel_list = ttk.Label(insights_frame, text=top_losers_rel_text)
     top_losers_rel_list.grid(padx=5, pady=5, column=2, row=1)
     insights_frame.grid(column=1, row=2, padx=5, pady=5)
+    img_label.grid(padx=5, pady=5, column=2, row=2)
     summary_wait_var = tk.IntVar(root, 0)
     back_button = ttk.Button(root, text="Back", command=lambda: summary_wait_var.set(1))
     back_button.grid(row=3, column=0, padx=5, pady=5)
@@ -1950,6 +2048,7 @@ def portfolio_summary():
     allocation_frame.destroy()
     insights_frame.destroy()
     save_button.destroy()
+    img_label.destroy()
     loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 30))
     loading_label.pack(pady=150)
     other_loading_label = ttk.Label(root, text="This might take a couple seconds...", font=("Helvetica", 15))
@@ -2276,7 +2375,7 @@ def show_daily_summary(event):
         pass
     except Exception:
         pass
-    root.geometry("800x500")
+    root.geometry("1250x550")
     today = date.today().strftime("%Y-%m-%d")
     summary_window_title = ttk.Label(root, text="Daily Portfolio Summary", font=("Helvetica", 30))
     summary_window_title.grid(row=0, column=1, padx=5, pady=5)
@@ -2286,7 +2385,24 @@ def show_daily_summary(event):
     holdings_summary_text.grid(row=1, column=1, padx=5, pady=5)
     history_frame = ttk.Frame(root)
     history_frame.grid(row=0, column=1, padx=5, pady=5)
-    # TODO add history graph
+    today = date.today()
+    data = get_historical_prices(portfolio.securities, "1d")
+    data['portfolio_value'] = data.filter(like='_value').sum(axis=1)
+    plt.figure(figsize=(10, 6))
+    plt.plot(data.index, data['portfolio_value'], label='Portfolio Value')
+    plt.title('Portfolio Historical Performance')
+    plt.xlabel('Date')
+    plt.ylabel('Value (USD)')
+    plt.xticks(rotation=45)
+    plt.grid(True)
+    plt.legend()
+    plt.savefig('resources/portfolio-history-1d.png')
+    plt.close()
+    img = Image.open('resources/portfolio-history-1d.png')
+    img = img.resize((600, 400))
+    img = ImageTk.PhotoImage(img)
+    img_label = ttk.Label(root, image=img)
+    img_label.image = img
     holdings_frame = ttk.LabelFrame(root, text="Holdings")
     holdings_string = ""
     for stock in portfolio.securities:
@@ -2342,6 +2458,7 @@ def show_daily_summary(event):
     top_losers_rel_list = ttk.Label(insights_frame, text=top_losers_rel_text)
     top_losers_rel_list.grid(padx=5, pady=5, column=2, row=1)
     insights_frame.grid(column=1, row=2, padx=5, pady=5)
+    img_label.grid(padx=5, pady=5, column=3, row=2)
     summary_wait_var = tk.IntVar(root, 0)
     back_button = ttk.Button(root, text="Back", command=lambda: summary_wait_var.set(1))
     back_button.grid(row=3, column=1, padx=5, pady=5)
@@ -2355,6 +2472,7 @@ def show_daily_summary(event):
     holdings_frame.destroy()
     back_button.destroy()
     insights_frame.destroy()
+    img_label.destroy()
     loading_label = ttk.Label(root, text=random.choice(loading_messages), font=("Helvetica", 30))
     loading_label.pack(pady=150)
     other_loading_label = ttk.Label(root, text="This might take a couple seconds...",
@@ -2398,9 +2516,9 @@ if not os.path.exists("Settings/settings.json"):
         "refresh-interval": 10,
         "dark-mode": 1,
         "eod-summary": 1,
-        "default-sort": "none",
         "52-week-alerts": 1,
-        "alpha-vantage-key": "none"
+        "default-sort": "none",
+        "alpha-vantage-key": "DNE"
     }
     settings_object = json.dumps(settings, indent=4)
     with open("Settings/settings.json", "w+") as sf:
