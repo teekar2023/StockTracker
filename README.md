@@ -22,10 +22,15 @@
 ## Assistant
 ### Get quick answers about your portfolio data
 ![Assistant Prompt](resources/readme/assistant.png)
+---
 ## Summary
 ### Allocation information, gain/loss insights, and more coming
 ![Summary Page](resources/readme/summary_page.png)
 ![Sector Allocation](resources/readme/sector_allocation.png)
+---
+## Benchmark
+### Compare your portfolio to an index to evaluate how it's performing
+![Benchmark Page](resources/readme/benchmark_page.png)
 ---
 ## Dividends
 ### Dividend yields, forecasts, and recently received dividends
